@@ -1,0 +1,109 @@
+name: Update Articles Data
+
+on:
+  # Run every 4 hours
+  schedule:
+    - cron: '0 */4 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update even if no changes'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  update-articles:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests openai
+    
+    - name: Fetch articles from Inoreader
+      env:
+        INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+        INOREADER_API_KEY: ${{ secrets.INOREADER_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        INOREADER_TAG: ${{ vars.INOREADER_TAG || 'medaffairs' }}
+        MAX_HEROES: ${{ vars.MAX_HEROES || '3' }}
+        MAX_COLUMNS: ${{ vars.MAX_COLUMNS || '6' }}
+      run: |
+        python scripts/fetch_inoreader.py
+    
+    - name: Check for changes
+      id: check_changes
+      run: |
+        if git diff --quiet articles.json; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "No changes detected in articles.json"
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "Changes detected in articles.json"
+          git diff --stat articles.json
+        fi
+    
+    - name: Configure git
+      if: steps.check_changes.outputs.has_changes == 'true' || github.event.inputs.force_update == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Commit and push changes
+      if: steps.check_changes.outputs.has_changes == 'true' || github.event.inputs.force_update == 'true'
+      run: |
+        git add articles.json
+        
+        # Get article count for commit message
+        ARTICLE_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['articles']))")
+        HERO_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['heroes']))")
+        COLUMN_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['columns']))")
+        
+        git commit -m "Update articles data: ${ARTICLE_COUNT} articles, ${HERO_COUNT} heroes, ${COLUMN_COUNT} columns
+        
+        Automated update from Inoreader
+        - Total articles: ${ARTICLE_COUNT}
+        - Heroes: ${HERO_COUNT}/${MAX_HEROES}
+        - Columns: ${COLUMN_COUNT}/${MAX_COLUMNS}
+        - Updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        
+        git push
+    
+    - name: Create summary
+      run: |
+        echo "## Articles Update Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.check_changes.outputs.has_changes }}" == "true" || "${{ github.event.inputs.force_update }}" == "true" ]]; then
+          ARTICLE_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['articles']))")
+          HERO_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['heroes']))")
+          COLUMN_COUNT=$(python -c "import json; data=json.load(open('articles.json')); print(len(data['columns']))")
+          
+          echo "✅ **Articles data updated successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count | Limit |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Articles | ${ARTICLE_COUNT} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Heroes | ${HERO_COUNT} | ${MAX_HEROES} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Columns | ${COLUMN_COUNT} | ${MAX_COLUMNS} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📝 View and edit articles at: [Admin Editor](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/admin/editor.html)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ **No changes detected**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The articles.json file is up to date." >> $GITHUB_STEP_SUMMARY
+        fi

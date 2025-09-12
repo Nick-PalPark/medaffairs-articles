@@ -1,0 +1,10 @@
+{
+  "articles": [],
+  "heroes": [],
+  "columns": [],
+  "last_updated": null,
+  "limits": {
+    "max_heroes": 3,
+    "max_columns": 6
+  }
+}
