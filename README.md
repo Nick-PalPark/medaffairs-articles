@@ -1,0 +1,2 @@
+# medaffairs-articles
+Articles capture
