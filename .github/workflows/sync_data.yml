@@ -1,0 +1,49 @@
+name: Sync articles.json from medaffairs-data
+
+on:
+  repository_dispatch:
+    types: [medaffairs-data-updated]
+  workflow_dispatch:
+
+permissions:
+  contents: write    # allow commit back to this repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout site repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout medaffairs-data (private) into subdir
+        uses: actions/checkout@v4
+        with:
+          repository: Nick-PalPark/medaffairs-data
+          token: ${{ secrets.MEDAFFAIRS_DATA_TOKEN }}
+          path: medaffairs-data
+          fetch-depth: 1
+
+      - name: Ensure data directory
+        run: |
+          mkdir -p data
+
+      - name: Copy articles.json into site
+        run: |
+          if [ ! -f medaffairs-data/articles.json ]; then echo "No medaffairs-data/articles.json found" && exit 1; fi
+          cp medaffairs-data/articles.json data/articles.json
+          echo "Copied medaffairs-data/articles.json to data/articles.json"
+
+      - name: Commit & push changes if any
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add data/articles.json
+            git commit -m "Sync articles.json from medaffairs-data: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+            echo "Pushed updated data/articles.json"
+          else
+            echo "No changes to articles.json"
+          fi

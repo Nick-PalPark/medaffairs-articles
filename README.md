@@ -1,150 +1,39 @@
-# Medical Affairs Articles Capture
+# medaffairs.tech — Drudge-inspired front-end + private-data sync
 
-An automated workflow to capture and store articles from Inoreader RSS feeds as markdown files.
+This repo contains the static front-end for medaffairs.tech and a GitHub Actions workflow that syncs the private medaffairs-data/articles.json into this repo at publish-time.
 
-## Features
+Quick start / setup checklist
+1. medaffairs-data repo:
+   - Keep medaffairs-data private if you prefer (recommended by you).
+   - Ensure medaffairs-data has the fetch workflow that updates articles.json and triggers medaffairs.tech by calling repository_dispatch with event_type `medaffairs-data-updated`. Example:
+     - POST to https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches with body {"event_type":"medaffairs-data-updated"} using a token with repo:dispatch permissions.
 
-- Connects to Inoreader API to fetch unread articles
-- Converts articles to clean markdown format
-- Automatically organizes articles by date and title
-- Configurable article count and date range
-- HTML content cleaning and basic markdown conversion
-- Prevents duplicate article downloads
+2. Create a PAT for this repo to read medaffairs-data:
+   - Create a Personal Access Token (classic) with `repo` scope (or finer-grained token with repo:contents access).
+   - In medaffairs.tech repository settings -> Secrets -> Actions, create the secret `MEDAFFAIRS_DATA_TOKEN` with that PAT.
 
-## Setup
+3. GitHub Actions:
+   - The workflow `.github/workflows/sync_data.yml` will:
+     - Run on `repository_dispatch` event named `medaffairs-data-updated` (or manually).
+     - Check out medaffairs-data using the PAT and copy `articles.json` into `data/articles.json`.
+     - Commit and push the updated file if it changed.
+   - After the commit, GitHub Pages (if configured) will publish the updated site.
 
-### 1. Install Dependencies
+4. GitHub Pages:
+   - Configure GitHub Pages to serve from the branch/folder you want (e.g., main branch / root or `docs/`).
+   - If you serve from main root, the site is ready. If you serve from `docs/`, move the static files into `docs/` or adjust the workflow to place files there.
+   - Add a `CNAME` file with `medaffairs.tech` if you haven't already and configure DNS as described in your repo settings (A records or CNAME depending on setup).
 
-```bash
-pip install -r requirements.txt
-```
+Notes about titles and editing
+- The site will display:
+  1) manual_title (if present)
+  2) generated_title (AI snappy headline)
+  3) original_title (feed title)
+- Keep using the admin/editor approach we discussed earlier (or edit articles.json in medaffairs-data via the GitHub UI) to set `manual_title`. The medaffairs-data fetch workflow will preserve manual_title when it updates articles.json.
 
-### 2. Configure Inoreader API Access
+If you want, I can:
+- Update the medaffairs.tech repo directly with these files (I can open a PR) so you can review and merge.
+- Or I can walk you step-by-step through adding secrets and enabling the repository_dispatch trigger from medaffairs-data.
 
-1. Register your application at [Inoreader Developers](https://www.inoreader.com/developers/)
-2. Get your App ID and App Key
-3. Copy the configuration template:
-   ```bash
-   cp config_template.py config.py
-   ```
-4. Edit `config.py` with your credentials:
-   ```python
-   INOREADER_APP_ID = "your_app_id_here"
-   INOREADER_APP_KEY = "your_app_key_here"
-   INOREADER_USERNAME = "your_username"
-   INOREADER_PASSWORD = "your_password"
-   ```
-
-### 3. Configure Settings (Optional)
-
-In `config.py`, you can adjust:
-- `MAX_ARTICLES`: Maximum articles to fetch per run (default: 50)
-- `DAYS_BACK`: How many days back to look for articles (default: 7)
-- `ARTICLES_DIR`: Directory to save articles (default: "articles")
-
-## Usage
-
-### Run the Articles Capture Workflow
-
-```bash
-python capture_articles.py
-```
-
-This will:
-1. Authenticate with Inoreader API
-2. Fetch your unread articles from the last 7 days
-3. Convert them to markdown format
-4. Save them in the `articles/` directory
-
-### Article Format
-
-Each article is saved as a markdown file with:
-- Sanitized filename based on date and title
-- Metadata header (source, author, published date, URLs)
-- Clean content converted from HTML
-- Timestamp of when it was captured
-
-Example filename: `2024-01-15_New-Medical-Research-Breakthrough.md`
-
-### Automation
-
-To run automatically, you can set up a cron job:
-
-```bash
-# Run every 6 hours
-0 */6 * * * cd /path/to/medaffairs-articles && python capture_articles.py
-```
-
-## File Structure
-
-```
-medaffairs-articles/
-├── articles/                    # Captured articles (markdown files)
-│   └── example-article.md
-├── capture_articles.py          # Main workflow script
-├── config_template.py           # Configuration template
-├── config.py                    # Your configuration (ignored by git)
-├── requirements.txt             # Python dependencies
-└── README.md                    # This file
-```
-
-## Troubleshooting
-
-### Authentication Issues
-- Verify your App ID and App Key are correct
-- Ensure your Inoreader username/password are valid
-- Check that your app has the 'read' scope enabled
-
-### No Articles Found
-- Check if you have unread articles in Inoreader
-- Adjust `DAYS_BACK` setting to look further back
-- Verify your feeds are still active
-
-### Import Errors
-- Install all requirements: `pip install -r requirements.txt`
-- Ensure `config.py` exists and is properly configured
-
-## API Rate Limits
-
-Inoreader has API rate limits. The script includes basic error handling, but for heavy usage consider:
-- Reducing `MAX_ARTICLES` setting
-- Running less frequently
-- Implementing exponential backoff for retries
-=======
-# medaffairs-articles
-
-This private repository stores articles and metadata for use with [medaffairs.tech](https://github.com/Nick-PalPark/medaffairs.tech).
-
-## Structure
-
-- `articles/` — Contains Markdown articles, one per file.
-- `metadata/` — Contains JSON metadata files per article.
-- `README.md` — This file.
-
-## Example
-
-- `articles/example-article.md` — Example Markdown article.
-- `metadata/example-article.json` — Example metadata for the article.
-
-## Usage
-
-1. **Add a new article:**  
-   - Create a new Markdown file in `articles/`, e.g. `your-article-title.md`.
-   - Create a corresponding JSON metadata file in `metadata/`, e.g. `your-article-title.json`.
-
-2. **Metadata format:**
-   ```json
-   {
-     "title": "Your Article Title",
-     "author": "Your Name",
-     "date": "YYYY-MM-DD",
-     "tags": ["tag1", "tag2"],
-     "summary": "Short summary of the article."
-   }
-   ```
-
-3. **Syncing with medaffairs.tech:**  
-   You can use this repository to track and update articles and metadata before publishing or syncing with medaffairs.tech.
-
----
-
+DNS / Pages help
+- If you'd like, tell me your DNS host and I'll give exact DNS records to point medaffairs.tech to GitHub Pages.# Setup complete
