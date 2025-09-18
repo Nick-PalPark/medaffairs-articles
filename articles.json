@@ -1,8 +1,11 @@
 [
   {
+    "id": "example-article.md",
     "title": "Example Article",
-    "body": "This is a sample article in Markdown format.\nYou can add additional articles to this directory.",
-    "author": "Nick-PalPark",
-    "date": "2025-09-14"
+    "url": null,
+    "published": null,
+    "source": null,
+    "filepath": "articles/example-article.md",
+    "manual_title": "My Custom Article Title"
   }
 ]
