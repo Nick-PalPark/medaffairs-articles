@@ -1,12 +1,12 @@
-name: Run capture and publish articles.json
+name: Capture and publish articles.json
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *' # daily at 08:00 UTC (adjust or remove if you only want manual runs)
+    - cron: '0 0 * * *'
 
 permissions:
-  contents: write   # allow committing results back to this repo
+  contents: write
 
 jobs:
   update:
@@ -27,40 +27,62 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Create config.py from repository secrets
+        env:
+          CFG_INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          CFG_INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          CFG_INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          CFG_INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          cat > config_template.tmp <<'PY'
+          # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
+          # Populate any additional variables here that are required by config_template.py
+          INOREADER_APP_ID = "${CFG_INOREADER_APP_ID}"
+          INOREADER_APP_KEY = "${CFG_INOREADER_APP_KEY}"
+          INOREADER_USERNAME = "${CFG_INOREADER_USERNAME}"
+          INOREADER_PASSWORD = "${CFG_INOREADER_PASSWORD}"
+          
+          # API endpoints
+          INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
+          INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+          
+          # Output settings
+          ARTICLES_DIR = "articles"
+          MAX_ARTICLES = 50
+          DAYS_BACK = 7
+          PY
+          envsubst < config_template.tmp > config.py
+          rm config_template.tmp
+
+      - name: Debug - show config.py exists
+        run: |
+          echo "config.py created"
+          ls -la config.py
+
       - name: Run capture script
         run: |
-          # capture_articles.py writes markdown files into the articles/ directory
-          python capture_articles.py
+          python3 capture_articles.py
 
-      - name: Generate articles.json from articles/*.md (preserve manual_title)
+      - name: Generate articles.json
         run: |
-          mkdir -p scripts
-          python scripts/generate_articles_json.py --articles-dir articles --output articles.json
+          python3 scripts/generate_articles_json.py
 
-      - name: Commit & push updated articles.json and any new articles
-        env:
-          GIT_AUTHOR_NAME: "github-actions[bot]"
-          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+      - name: Commit & push changes if any
         run: |
-          git config user.name "$GIT_AUTHOR_NAME"
-          git config user.email "$GIT_AUTHOR_EMAIL"
-          git add articles.json articles || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Update articles.json and articles: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "nothing to commit"
+            git add -A
+            git commit -m "Regenerate articles.json: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
             git push
-            echo "Pushed updated articles.json"
           else
-            echo "No changes to commit"
+            echo "No changes"
           fi
 
-      - name: Notify medaffairs.tech (repository_dispatch)
-        if: ${{ always() }}
-        env:
-          MEDAFFAIRS_TECH_PAT: ${{ secrets.MEDAFFAIRS_TECH_PAT }}
+      - name: Trigger site sync
         run: |
-          # Trigger medaffairs.tech sync workflow
           curl -sS -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token $MEDAFFAIRS_TECH_PAT" \
+            -H "Authorization: token ${{ secrets.MEDAFFAIRS_TECH_PAT }}" \
             https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches \
             -d '{"event_type":"medaffairs-articles-updated"}'
