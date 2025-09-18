@@ -30,13 +30,86 @@ class InoreaderClient:
         self.app_key = config.INOREADER_APP_KEY
         self.username = config.INOREADER_USERNAME
         self.password = config.INOREADER_PASSWORD
+        # OAuth refresh token (preferred for automation)
+        # To obtain: authorize medaffairs.tech app and store refresh_token in INOREADER_REFRESH_TOKEN secret
+        self.refresh_token = getattr(config, 'INOREADER_REFRESH_TOKEN', None)
         self.base_url = config.INOREADER_API_BASE
         self.auth_url = config.INOREADER_AUTH_URL
         self.access_token = None
         self.session = requests.Session()
         
     def authenticate(self):
-        """Authenticate with Inoreader API using OAuth2"""
+        """
+        Authenticate with Inoreader API using OAuth2
+        
+        Prefers refresh_token grant if INOREADER_REFRESH_TOKEN is available (recommended for automation).
+        Falls back to password grant using username/password for backward compatibility.
+        
+        To obtain refresh_token: authorize medaffairs.tech app through Inoreader OAuth flow
+        and store the refresh_token in repository secrets as INOREADER_REFRESH_TOKEN.
+        """
+        # Try refresh token first (preferred for automation)
+        if self.refresh_token:
+            print("Attempting authentication with refresh token...")
+            if self._authenticate_with_refresh_token():
+                return True
+            print("Refresh token authentication failed, falling back to password grant...")
+        
+        # Fall back to password grant
+        print("Attempting authentication with username/password...")
+        return self._authenticate_with_password()
+    
+    def _authenticate_with_refresh_token(self):
+        """Authenticate using OAuth2 refresh token grant"""
+        auth_data = {
+            'client_id': self.app_id,
+            'client_secret': self.app_key,
+            'grant_type': 'refresh_token',
+            'refresh_token': self.refresh_token
+        }
+        
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        
+        try:
+            response = self.session.post(self.auth_url, data=auth_data, headers=headers)
+            
+            if response.status_code != 200:
+                # Log the provider response for debugging
+                print(f"Token endpoint returned {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"Provider response: {json.dumps(error_data, indent=2)}")
+                except:
+                    print(f"Provider response body: {response.text}")
+                return False
+            
+            auth_response = response.json()
+            self.access_token = auth_response.get('access_token')
+            
+            if not self.access_token:
+                print("No access token received in refresh token response")
+                try:
+                    print(f"Response data: {json.dumps(auth_response, indent=2)}")
+                except:
+                    print(f"Response data: {auth_response}")
+                return False
+                
+            # Set authorization header for future requests
+            self.session.headers.update({
+                'Authorization': f'Bearer {self.access_token}'
+            })
+            
+            print("Successfully authenticated with Inoreader API using refresh token")
+            return True
+            
+        except Exception as e:
+            print(f"Refresh token authentication failed: {e}")
+            return False
+    
+    def _authenticate_with_password(self):
+        """Authenticate using OAuth2 password grant (fallback)"""
         auth_data = {
             'client_id': self.app_id,
             'client_secret': self.app_key,
@@ -52,24 +125,38 @@ class InoreaderClient:
         
         try:
             response = self.session.post(self.auth_url, data=auth_data, headers=headers)
-            response.raise_for_status()
+            
+            if response.status_code != 200:
+                # Log the provider response for debugging
+                print(f"Token endpoint returned {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"Provider response: {json.dumps(error_data, indent=2)}")
+                except:
+                    print(f"Provider response body: {response.text}")
+                return False
             
             auth_response = response.json()
             self.access_token = auth_response.get('access_token')
             
             if not self.access_token:
-                raise Exception("No access token received")
+                print("No access token received in password grant response")
+                try:
+                    print(f"Response data: {json.dumps(auth_response, indent=2)}")
+                except:
+                    print(f"Response data: {auth_response}")
+                return False
                 
             # Set authorization header for future requests
             self.session.headers.update({
                 'Authorization': f'Bearer {self.access_token}'
             })
             
-            print("Successfully authenticated with Inoreader API")
+            print("Successfully authenticated with Inoreader API using password grant")
             return True
             
         except Exception as e:
-            print(f"Authentication failed: {e}")
+            print(f"Password authentication failed: {e}")
             return False
     
     def get_subscription_list(self):

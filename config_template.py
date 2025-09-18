@@ -6,7 +6,15 @@
 INOREADER_APP_ID = "your_app_id_here"
 INOREADER_APP_KEY = "your_app_key_here"
 
-# OAuth2 credentials (obtained after app registration)
+# OAuth2 credentials - Two options available:
+
+# Option 1 (PREFERRED for automation): OAuth refresh token
+# Obtain by authorizing medaffairs.tech app through Inoreader OAuth flow
+# More secure and stable for automated workflows
+# INOREADER_REFRESH_TOKEN = "your_refresh_token_here"
+
+# Option 2 (fallback): Username and password
+# Used when refresh token is not available
 INOREADER_USERNAME = "your_username"
 INOREADER_PASSWORD = "your_password"
 

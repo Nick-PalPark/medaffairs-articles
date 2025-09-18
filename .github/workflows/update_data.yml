@@ -31,6 +31,7 @@ jobs:
         env:
           INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
           INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_REFRESH_TOKEN: ${{ secrets.INOREADER_REFRESH_TOKEN }}
           INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
           INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
         run: |
@@ -40,6 +41,12 @@ jobs:
 
           INOREADER_APP_ID = "${INOREADER_APP_ID}"
           INOREADER_APP_KEY = "${INOREADER_APP_KEY}"
+          
+          # OAuth refresh token (preferred for automation)
+          # To obtain: authorize medaffairs.tech app and store refresh_token in INOREADER_REFRESH_TOKEN secret
+          INOREADER_REFRESH_TOKEN = "${INOREADER_REFRESH_TOKEN}" if "${INOREADER_REFRESH_TOKEN}" != "" else None
+          
+          # Username/password (fallback when refresh token not available)
           INOREADER_USERNAME = "${INOREADER_USERNAME}"
           INOREADER_PASSWORD = "${INOREADER_PASSWORD}"
 
@@ -55,18 +62,20 @@ jobs:
         env:
           INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
           INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_REFRESH_TOKEN: ${{ secrets.INOREADER_REFRESH_TOKEN }}
           INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
           INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
         run: |
           # Confirm the secret env vars are present (we print only whether they're set)
           if [ -z "$INOREADER_APP_ID" ]; then echo "INOREADER_APP_ID is empty"; else echo "INOREADER_APP_ID is set"; fi
           if [ -z "$INOREADER_APP_KEY" ]; then echo "INOREADER_APP_KEY is empty"; else echo "INOREADER_APP_KEY is set"; fi
+          if [ -z "$INOREADER_REFRESH_TOKEN" ]; then echo "INOREADER_REFRESH_TOKEN is empty (will use password fallback)"; else echo "INOREADER_REFRESH_TOKEN is set (preferred)"; fi
           if [ -z "$INOREADER_USERNAME" ]; then echo "INOREADER_USERNAME is empty"; else echo "INOREADER_USERNAME is set"; fi
           if [ -z "$INOREADER_PASSWORD" ]; then echo "INOREADER_PASSWORD is empty"; else echo "INOREADER_PASSWORD is set"; fi
 
           # Confirm config.py exists and show the keys (values are redacted here)
           ls -la config.py || true
-          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
+          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_(REFRESH_TOKEN|USERNAME|PASSWORD)" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
 
       - name: Run capture script
         run: |
