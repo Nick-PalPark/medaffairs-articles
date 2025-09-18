@@ -27,6 +27,47 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      - name: Create config.py from repository secrets
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          cat > config.py <<'PY'
+          # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
+          # Populated from repository secrets at runtime by Actions
+
+          INOREADER_APP_ID = "${INOREADER_APP_ID}"
+          INOREADER_APP_KEY = "${INOREADER_APP_KEY}"
+          INOREADER_USERNAME = "${INOREADER_USERNAME}"
+          INOREADER_PASSWORD = "${INOREADER_PASSWORD}"
+
+          INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
+          INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+
+          ARTICLES_DIR = "articles"
+          MAX_ARTICLES = 50
+          DAYS_BACK = 7
+          PY
+
+      - name: Debug - verify secrets are available and config.py present
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          # Confirm the secret env vars are present (we print only whether they're set)
+          if [ -z "$INOREADER_APP_ID" ]; then echo "INOREADER_APP_ID is empty"; else echo "INOREADER_APP_ID is set"; fi
+          if [ -z "$INOREADER_APP_KEY" ]; then echo "INOREADER_APP_KEY is empty"; else echo "INOREADER_APP_KEY is set"; fi
+          if [ -z "$INOREADER_USERNAME" ]; then echo "INOREADER_USERNAME is empty"; else echo "INOREADER_USERNAME is set"; fi
+          if [ -z "$INOREADER_PASSWORD" ]; then echo "INOREADER_PASSWORD is empty"; else echo "INOREADER_PASSWORD is set"; fi
+
+          # Confirm config.py exists and show the keys (values are redacted here)
+          ls -la config.py || true
+          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
+
       - name: Run capture script
         run: |
           # capture_articles.py writes markdown files into the articles/ directory
