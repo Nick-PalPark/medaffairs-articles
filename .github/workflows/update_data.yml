@@ -1,32 +1,3 @@
-name: Run capture and publish articles.json
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 8 * * *' # daily at 08:00 UTC (adjust or remove if you only want manual runs)
-
-permissions:
-  contents: write   # allow committing results back to this repo
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install requirements
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
       - name: Create config.py from repository secrets
         env:
           INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
@@ -34,14 +5,14 @@ jobs:
           INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
           INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
         run: |
-          cat > config.py <<'PY'
+          cat > config.py <<'EOL'
           # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
           # Populated from repository secrets at runtime by Actions
 
-          INOREADER_APP_ID = "${INOREADER_APP_ID}"
-          INOREADER_APP_KEY = "${INOREADER_APP_KEY}"
-          INOREADER_USERNAME = "${INOREADER_USERNAME}"
-          INOREADER_PASSWORD = "${INOREADER_PASSWORD}"
+          INOREADER_APP_ID = '$INOREADER_APP_ID'
+          INOREADER_APP_KEY = '$INOREADER_APP_KEY'
+          INOREADER_USERNAME = '$INOREADER_USERNAME'
+          INOREADER_PASSWORD = '$INOREADER_PASSWORD'
 
           INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
           INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
@@ -49,59 +20,4 @@ jobs:
           ARTICLES_DIR = "articles"
           MAX_ARTICLES = 50
           DAYS_BACK = 7
-          PY
-
-      - name: Debug - verify secrets are available and config.py present
-        env:
-          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
-          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
-          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
-          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
-        run: |
-          # Confirm the secret env vars are present (we print only whether they're set)
-          if [ -z "$INOREADER_APP_ID" ]; then echo "INOREADER_APP_ID is empty"; else echo "INOREADER_APP_ID is set"; fi
-          if [ -z "$INOREADER_APP_KEY" ]; then echo "INOREADER_APP_KEY is empty"; else echo "INOREADER_APP_KEY is set"; fi
-          if [ -z "$INOREADER_USERNAME" ]; then echo "INOREADER_USERNAME is empty"; else echo "INOREADER_USERNAME is set"; fi
-          if [ -z "$INOREADER_PASSWORD" ]; then echo "INOREADER_PASSWORD is empty"; else echo "INOREADER_PASSWORD is set"; fi
-
-          # Confirm config.py exists and show the keys (values are redacted here)
-          ls -la config.py || true
-          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
-
-      - name: Run capture script
-        run: |
-          # capture_articles.py writes markdown files into the articles/ directory
-          python capture_articles.py
-
-      - name: Generate articles.json from articles/*.md (preserve manual_title)
-        run: |
-          mkdir -p scripts
-          python scripts/generate_articles_json.py --articles-dir articles --output articles.json
-
-      - name: Commit & push updated articles.json and any new articles
-        env:
-          GIT_AUTHOR_NAME: "github-actions[bot]"
-          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
-        run: |
-          git config user.name "$GIT_AUTHOR_NAME"
-          git config user.email "$GIT_AUTHOR_EMAIL"
-          git add articles.json articles || true
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Update articles.json and articles: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "nothing to commit"
-            git push
-            echo "Pushed updated articles.json"
-          else
-            echo "No changes to commit"
-          fi
-
-      - name: Notify medaffairs.tech (repository_dispatch)
-        if: ${{ always() }}
-        env:
-          MEDAFFAIRS_TECH_PAT: ${{ secrets.MEDAFFAIRS_TECH_PAT }}
-        run: |
-          # Trigger medaffairs.tech sync workflow
-          curl -sS -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token $MEDAFFAIRS_TECH_PAT" \
-            https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches \
-            -d '{"event_type":"medaffairs-articles-updated"}'
+          EOL
