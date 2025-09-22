@@ -1,3 +1,33 @@
+@@ -1,32 +1,73 @@
+name: Run capture and publish articles.json
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * *' # daily at 08:00 UTC (adjust or remove if you only want manual runs)
+
+permissions:
+  contents: write   # allow committing results back to this repo
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Create config.py from repository secrets
         env:
           INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
@@ -21,3 +51,29 @@
           MAX_ARTICLES = 50
           DAYS_BACK = 7
           EOL
+      - name: Debug - verify secrets are available and config.py present
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          # Confirm the secret env vars are present (we print only whether they're set)
+          if [ -z "$INOREADER_APP_ID" ]; then echo "INOREADER_APP_ID is empty"; else echo "INOREADER_APP_ID is set"; fi
+          if [ -z "$INOREADER_APP_KEY" ]; then echo "INOREADER_APP_KEY is empty"; else echo "INOREADER_APP_KEY is set"; fi
+          if [ -z "$INOREADER_USERNAME" ]; then echo "INOREADER_USERNAME is empty"; else echo "INOREADER_USERNAME is set"; fi
+          if [ -z "$INOREADER_PASSWORD" ]; then echo "INOREADER_PASSWORD is empty"; else echo "INOREADER_PASSWORD is set"; fi
+
+          # Confirm config.py exists and show the keys (values are redacted here)
+          ls -la config.py || true
+          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
+
+      - name: Run capture script
+        run: |
+          # capture_articles.py writes markdown files into the articles/ directory
+@@ -63,4 +104,4 @@
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $MEDAFFAIRS_TECH_PAT" \
+            https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches \
+            -d '{"event_type":"medaffairs-articles-updated"}'
+            -d '{"event_type":"medaffairs-articles-updated"}'
