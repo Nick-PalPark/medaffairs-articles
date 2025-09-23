@@ -1,0 +1,406 @@
+name: Sync Articles with Rate Limiting
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 08:00 UTC daily
+    - cron: '0 20 * * *'  # 20:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      sync_type:
+        description: 'Sync type to perform'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - 'full'
+          - 'articles_only'
+          - 'json_only'
+      force_sync:
+        description: 'Force sync (override rate limiting)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write   # allow committing results back to this repo
+
+env:
+  RATE_LIMIT_MINUTES: 30
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check rate limiting for manual triggers
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "::group::Rate limiting check"
+          
+          if [[ "${{ inputs.force_sync }}" == "true" ]]; then
+            echo "⚠️  Force sync enabled - skipping rate limit check"
+            echo "RATE_LIMIT_PASSED=true" >> $GITHUB_ENV
+            echo "::endgroup::"
+            exit 0
+          fi
+          
+          # Get the last successful workflow run timestamp
+          WORKFLOW_NAME="Sync Articles with Rate Limiting"
+          
+          echo "🔍 Checking for recent workflow runs..."
+          
+          # Use GitHub CLI to get recent workflow runs
+          RECENT_RUN=$(gh run list \
+            --workflow="$WORKFLOW_NAME" \
+            --status=completed \
+            --limit=5 \
+            --json=createdAt,conclusion,event \
+            --jq='map(select(.event == "workflow_dispatch" and .conclusion == "success")) | .[0].createdAt // empty')
+          
+          if [[ -z "$RECENT_RUN" ]]; then
+            echo "✅ No recent manual runs found - proceeding"
+            echo "RATE_LIMIT_PASSED=true" >> $GITHUB_ENV
+          else
+            echo "📅 Last manual run: $RECENT_RUN"
+            
+            # Calculate time difference
+            LAST_RUN_EPOCH=$(date -d "$RECENT_RUN" +%s)
+            CURRENT_EPOCH=$(date +%s)
+            DIFF_MINUTES=$(( (CURRENT_EPOCH - LAST_RUN_EPOCH) / 60 ))
+            
+            echo "⏰ Minutes since last manual run: $DIFF_MINUTES"
+            echo "🚫 Rate limit threshold: ${{ env.RATE_LIMIT_MINUTES }} minutes"
+            
+            if [[ $DIFF_MINUTES -ge ${{ env.RATE_LIMIT_MINUTES }} ]]; then
+              echo "✅ Rate limit passed - proceeding"
+              echo "RATE_LIMIT_PASSED=true" >> $GITHUB_ENV
+            else
+              REMAINING=$(( ${{ env.RATE_LIMIT_MINUTES }} - DIFF_MINUTES ))
+              echo "❌ Rate limit active - must wait $REMAINING more minutes"
+              echo "💡 Use 'Force Sync' option to override rate limiting"
+              echo "RATE_LIMIT_PASSED=false" >> $GITHUB_ENV
+            fi
+          fi
+          echo "::endgroup::"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Exit if rate limited
+        if: github.event_name == 'workflow_dispatch' && env.RATE_LIMIT_PASSED == 'false'
+        run: |
+          echo "::error::Manual sync blocked by rate limiting. Wait ${{ env.RATE_LIMIT_MINUTES }} minutes between runs or use 'Force Sync' option."
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          echo "::group::Installing Python dependencies"
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then 
+            pip install -r requirements.txt
+            echo "✅ Installed requirements from requirements.txt"
+          else
+            echo "⚠️  No requirements.txt found"
+          fi
+          echo "::endgroup::"
+
+      - name: Create config.py from repository secrets
+        if: inputs.sync_type == 'full' || inputs.sync_type == 'articles_only' || github.event_name == 'schedule'
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          echo "::group::Creating config.py from secrets"
+          cat > config.py <<'EOL'
+          # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
+          # Populated from repository secrets at runtime by Actions
+          
+          INOREADER_APP_ID = '$INOREADER_APP_ID'
+          INOREADER_APP_KEY = '$INOREADER_APP_KEY'
+          INOREADER_USERNAME = '$INOREADER_USERNAME'
+          INOREADER_PASSWORD = '$INOREADER_PASSWORD'
+          
+          INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
+          INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+          
+          ARTICLES_DIR = "articles"
+          MAX_ARTICLES = 50
+          DAYS_BACK = 7
+          EOL
+          echo "✅ Config file created successfully"
+          echo "::endgroup::"
+
+      - name: Verify secrets and config
+        if: inputs.sync_type == 'full' || inputs.sync_type == 'articles_only' || github.event_name == 'schedule'
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          echo "::group::Verifying configuration"
+          # Verify secrets are present (without revealing values)
+          if [ -z "$INOREADER_APP_ID" ]; then echo "❌ INOREADER_APP_ID is empty"; exit 1; else echo "✅ INOREADER_APP_ID is set"; fi
+          if [ -z "$INOREADER_APP_KEY" ]; then echo "❌ INOREADER_APP_KEY is empty"; exit 1; else echo "✅ INOREADER_APP_KEY is set"; fi
+          if [ -z "$INOREADER_USERNAME" ]; then echo "❌ INOREADER_USERNAME is empty"; exit 1; else echo "✅ INOREADER_USERNAME is set"; fi
+          if [ -z "$INOREADER_PASSWORD" ]; then echo "❌ INOREADER_PASSWORD is empty"; exit 1; else echo "✅ INOREADER_PASSWORD is set"; fi
+          
+          # Verify config.py exists and has expected structure
+          if [ -f config.py ]; then
+            echo "✅ config.py exists"
+            if grep -q "INOREADER_APP_ID\|INOREADER_APP_KEY\|INOREADER_USERNAME\|INOREADER_PASSWORD" config.py; then
+              echo "✅ config.py has expected structure"
+            else
+              echo "❌ config.py missing expected variables"
+              exit 1
+            fi
+          else
+            echo "❌ config.py not found"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: Capture articles from Inoreader
+        if: inputs.sync_type == 'full' || inputs.sync_type == 'articles_only' || github.event_name == 'schedule'
+        id: capture
+        run: |
+          echo "::group::Capturing articles from Inoreader"
+          
+          # Count existing articles before capture
+          BEFORE_COUNT=$(find articles -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "📊 Articles before capture: $BEFORE_COUNT"
+          
+          echo "🔄 Running article capture..."
+          if python capture_articles.py; then
+            echo "✅ Article capture completed successfully"
+            
+            # Count articles after capture
+            AFTER_COUNT=$(find articles -name "*.md" 2>/dev/null | wc -l || echo "0")
+            NEW_COUNT=$((AFTER_COUNT - BEFORE_COUNT))
+            echo "📊 Articles after capture: $AFTER_COUNT"
+            echo "📈 New articles captured: $NEW_COUNT"
+            
+            echo "capture_success=true" >> $GITHUB_OUTPUT
+            echo "new_articles=$NEW_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Article capture failed"
+            echo "capture_success=false" >> $GITHUB_OUTPUT
+            echo "new_articles=0" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "::endgroup::"
+
+      - name: Generate articles.json
+        if: inputs.sync_type == 'full' || inputs.sync_type == 'json_only' || github.event_name == 'schedule'
+        id: generate
+        run: |
+          echo "::group::Generating articles.json from markdown files"
+          
+          # Count markdown files to process
+          MD_COUNT=$(find articles -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "📊 Markdown files to process: $MD_COUNT"
+          
+          if [ $MD_COUNT -eq 0 ]; then
+            echo "⚠️  No markdown files found in articles directory"
+            echo "generate_success=false" >> $GITHUB_OUTPUT
+          else
+            echo "🔄 Generating JSON from markdown files..."
+            
+            # Backup existing articles.json if it exists
+            if [ -f articles.json ]; then
+              cp articles.json articles.json.backup
+              echo "💾 Backed up existing articles.json"
+            fi
+            
+            if python scripts/generate_articles_json.py --articles-dir articles --output articles.json --existing articles.json; then
+              echo "✅ Articles.json generation completed successfully"
+              
+              # Verify the generated JSON is valid
+              if python -c "import json; json.load(open('articles.json'))" 2>/dev/null; then
+                ARTICLE_COUNT=$(python -c "import json; print(len(json.load(open('articles.json'))))")
+                echo "📊 Generated JSON contains $ARTICLE_COUNT articles"
+                echo "generate_success=true" >> $GITHUB_OUTPUT
+              else
+                echo "❌ Generated JSON is invalid"
+                # Restore backup if available
+                if [ -f articles.json.backup ]; then
+                  mv articles.json.backup articles.json
+                  echo "🔄 Restored backup articles.json"
+                fi
+                echo "generate_success=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            else
+              echo "❌ Articles.json generation failed"
+              # Restore backup if available
+              if [ -f articles.json.backup ]; then
+                mv articles.json.backup articles.json
+                echo "🔄 Restored backup articles.json"
+              fi
+              echo "generate_success=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+          echo "::endgroup::"
+
+      - name: Clean up sensitive files
+        if: always()
+        run: |
+          echo "::group::Cleaning up sensitive files"
+          if [ -f config.py ]; then
+            rm config.py
+            echo "✅ Removed config.py"
+          fi
+          if [ -f articles.json.backup ]; then
+            rm articles.json.backup
+            echo "✅ Removed articles.json.backup"
+          fi
+          echo "::endgroup::"
+
+      - name: Commit and push changes
+        id: commit
+        run: |
+          echo "::group::Committing and pushing changes"
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Add changes
+          git add articles/ articles.json
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes to commit"
+            echo "changes_committed=false" >> $GITHUB_OUTPUT
+          else
+            # Create descriptive commit message based on sync type
+            case "${{ inputs.sync_type || 'full' }}" in
+              "articles_only")
+                COMMIT_MSG="Capture new articles (articles only): $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+                ;;
+              "json_only")
+                COMMIT_MSG="Regenerate articles.json: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+                ;;
+              *)
+                COMMIT_MSG="Sync articles and update JSON: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+                ;;
+            esac
+            
+            echo "📝 Commit message: $COMMIT_MSG"
+            
+            if git commit -m "$COMMIT_MSG"; then
+              echo "✅ Changes committed successfully"
+              
+              if git push; then
+                echo "🚀 Changes pushed to repository"
+                echo "changes_committed=true" >> $GITHUB_OUTPUT
+                
+                # Show what was changed
+                git --no-pager show --stat HEAD
+              else
+                echo "❌ Failed to push changes"
+                echo "changes_committed=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            else
+              echo "❌ Failed to commit changes"
+              echo "changes_committed=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+          echo "::endgroup::"
+
+      - name: Trigger medaffairs.tech repository dispatch
+        if: steps.commit.outputs.changes_committed == 'true'
+        id: dispatch
+        run: |
+          echo "::group::Triggering medaffairs.tech update"
+          
+          if [ -z "${{ secrets.MEDAFFAIRS_TECH_PAT }}" ]; then
+            echo "⚠️  MEDAFFAIRS_TECH_PAT secret not configured - skipping repository dispatch"
+            echo "dispatch_success=false" >> $GITHUB_OUTPUT
+          else
+            echo "🔄 Sending repository dispatch to medaffairs.tech..."
+            
+            RESPONSE=$(curl -s -w "%{http_code}" -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: token ${{ secrets.MEDAFFAIRS_TECH_PAT }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches \
+              -d '{"event_type":"medaffairs-articles-updated"}' \
+              -o /tmp/dispatch_response.json)
+            
+            HTTP_CODE="${RESPONSE: -3}"
+            
+            if [ "$HTTP_CODE" = "204" ]; then
+              echo "✅ Repository dispatch sent successfully"
+              echo "dispatch_success=true" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Repository dispatch failed with HTTP code: $HTTP_CODE"
+              if [ -f /tmp/dispatch_response.json ]; then
+                echo "Response:"
+                cat /tmp/dispatch_response.json
+              fi
+              echo "dispatch_success=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+          echo "::endgroup::"
+
+      - name: Workflow summary
+        if: always()
+        run: |
+          echo "::group::Workflow Summary"
+          echo "🏁 Workflow completed"
+          echo ""
+          echo "**Execution Details:**"
+          echo "- Trigger: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "- Sync Type: ${{ inputs.sync_type }}"
+            echo "- Force Sync: ${{ inputs.force_sync }}"
+          fi
+          echo "- Run ID: ${{ github.run_id }}"
+          echo "- Repository: ${{ github.repository }}"
+          echo ""
+          echo "**Results:**"
+          
+          if [ "${{ steps.capture.outputs.capture_success }}" = "true" ]; then
+            echo "✅ Article capture: SUCCESS (${{ steps.capture.outputs.new_articles }} new articles)"
+          elif [ "${{ inputs.sync_type }}" = "json_only" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "⏭️  Article capture: SKIPPED (sync type: ${{ inputs.sync_type || 'full' }})"
+          else
+            echo "❌ Article capture: FAILED"
+          fi
+          
+          if [ "${{ steps.generate.outputs.generate_success }}" = "true" ]; then
+            echo "✅ JSON generation: SUCCESS"
+          elif [ "${{ inputs.sync_type }}" = "articles_only" ]; then
+            echo "⏭️  JSON generation: SKIPPED (sync type: articles_only)"
+          else
+            echo "❌ JSON generation: FAILED"
+          fi
+          
+          if [ "${{ steps.commit.outputs.changes_committed }}" = "true" ]; then
+            echo "✅ Changes committed: SUCCESS"
+          else
+            echo "ℹ️  Changes committed: NO CHANGES"
+          fi
+          
+          if [ "${{ steps.dispatch.outputs.dispatch_success }}" = "true" ]; then
+            echo "✅ Repository dispatch: SUCCESS"
+          elif [ "${{ steps.commit.outputs.changes_committed }}" != "true" ]; then
+            echo "⏭️  Repository dispatch: SKIPPED (no changes)"
+          else
+            echo "❌ Repository dispatch: FAILED"
+          fi
+          
+          echo "::endgroup::"
