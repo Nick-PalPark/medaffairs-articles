@@ -1,0 +1,261 @@
+name: Sync Articles with Rate Limiting
+
+on:
+  schedule:
+    # Run at 08:00 UTC daily
+    - cron: '0 8 * * *'
+    # Run at 20:00 UTC daily  
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+    inputs:
+      sync_type:
+        description: 'Type of sync to perform'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - articles_only
+          - json_only
+      force_sync:
+        description: 'Force sync even if rate limit applies'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write   # allow committing results back to this repo
+
+jobs:
+  rate_limit_check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.rate_check.outputs.should_run }}
+      last_run: ${{ steps.rate_check.outputs.last_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check rate limiting
+        id: rate_check
+        run: |
+          echo "::group::Rate Limiting Check"
+          
+          # Skip rate limiting for scheduled runs or if force_sync is true
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.force_sync }}" = "true" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Scheduled run or force sync - bypassing rate limit"
+            echo "::endgroup::"
+            exit 0
+          fi
+          
+          # Check for recent manual runs (within 30 minutes)
+          CUTOFF_TIME=$(date -d '30 minutes ago' -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "Checking for runs after: $CUTOFF_TIME"
+          
+          # Get recent workflow runs for this workflow  
+          # Try GitHub CLI first, fallback to API
+          if command -v gh >/dev/null 2>&1; then
+            RECENT_RUNS=$(gh run list \
+              --workflow=sync-articles.yml \
+              --limit=10 \
+              --json created_at,event,conclusion \
+              --jq "[.[] | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
+          else
+            # Fallback to direct API call
+            RECENT_RUNS=$(curl -s \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=10" | \
+              jq "[.workflow_runs[] | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\" and .name == \"Sync Articles with Rate Limiting\")]")
+          fi
+          
+          RECENT_COUNT=$(echo "$RECENT_RUNS" | jq length)
+          echo "Recent manual runs in last 30 minutes: $RECENT_COUNT"
+          
+          if [ "$RECENT_COUNT" -gt 0 ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "last_run=$(echo "$RECENT_RUNS" | jq -r '.[0].created_at')" >> $GITHUB_OUTPUT
+            echo "Rate limit hit - skipping run"
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "No recent runs - proceeding"
+          fi
+          
+          echo "::endgroup::"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  sync:
+    runs-on: ubuntu-latest
+    needs: rate_limit_check
+    if: needs.rate_limit_check.outputs.should_run == 'true'
+    steps:
+      - name: Log sync start
+        run: |
+          echo "::group::Sync Configuration"
+          echo "Event: ${{ github.event_name }}"
+          echo "Sync Type: ${{ github.event.inputs.sync_type || 'full' }}"
+          echo "Force Sync: ${{ github.event.inputs.force_sync || 'false' }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "::endgroup::"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install requirements
+        run: |
+          echo "::group::Installing Dependencies"
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          echo "::endgroup::"
+
+      - name: Create config.py from repository secrets
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          echo "::group::Configuration Setup"
+          cat > config.py <<'EOL'
+          # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
+          # Populated from repository secrets at runtime by Actions
+
+          INOREADER_APP_ID = '$INOREADER_APP_ID'
+          INOREADER_APP_KEY = '$INOREADER_APP_KEY'
+          INOREADER_USERNAME = '$INOREADER_USERNAME'
+          INOREADER_PASSWORD = '$INOREADER_PASSWORD'
+
+          INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
+          INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+
+          ARTICLES_DIR = "articles"
+          MAX_ARTICLES = 50
+          DAYS_BACK = 7
+          EOL
+          echo "Configuration created successfully"
+          echo "::endgroup::"
+
+      - name: Verify configuration
+        env:
+          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
+          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
+          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
+          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+        run: |
+          echo "::group::Configuration Verification"
+          # Confirm the secret env vars are present (we print only whether they're set)
+          if [ -z "$INOREADER_APP_ID" ]; then echo "❌ INOREADER_APP_ID is empty"; else echo "✅ INOREADER_APP_ID is set"; fi
+          if [ -z "$INOREADER_APP_KEY" ]; then echo "❌ INOREADER_APP_KEY is empty"; else echo "✅ INOREADER_APP_KEY is set"; fi
+          if [ -z "$INOREADER_USERNAME" ]; then echo "❌ INOREADER_USERNAME is empty"; else echo "✅ INOREADER_USERNAME is set"; fi
+          if [ -z "$INOREADER_PASSWORD" ]; then echo "❌ INOREADER_PASSWORD is empty"; else echo "✅ INOREADER_PASSWORD is set"; fi
+
+          # Confirm config.py exists and show the keys (values are redacted here)
+          ls -la config.py || true
+          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
+          echo "::endgroup::"
+
+      - name: Run capture script
+        if: github.event.inputs.sync_type != 'json_only'
+        run: |
+          echo "::group::Article Capture"
+          echo "Running article capture from Inoreader..."
+          # capture_articles.py writes markdown files into the articles/ directory
+          python capture_articles.py
+          echo "Article capture completed"
+          echo "::endgroup::"
+
+      - name: Generate articles.json from updated markdown files
+        if: github.event.inputs.sync_type != 'articles_only'
+        run: |
+          echo "::group::JSON Generation"
+          echo "Generating articles.json from markdown files..."
+          # Use the generate_articles_json.py script to create a JSON file from articles/*.md
+          python scripts/generate_articles_json.py --articles-dir articles --output articles.json
+          echo "JSON generation completed"
+          
+          # Show summary of generated data
+          if [ -f articles.json ]; then
+            ARTICLE_COUNT=$(jq length articles.json 2>/dev/null || echo "0")
+            echo "Generated articles.json with $ARTICLE_COUNT articles"
+          fi
+          echo "::endgroup::"
+
+      - name: Commit and push changes if any
+        run: |
+          echo "::group::Commit and Push"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Add any changes (new markdown files in articles/, updated articles.json)
+          git add articles/ articles.json
+          
+          # Check for changes and commit
+          if git diff --staged --quiet; then
+            echo "📝 No changes to commit"
+          else
+            echo "📝 Changes detected, committing..."
+            SYNC_TYPE="${{ github.event.inputs.sync_type || 'full' }}"
+            COMMIT_MSG="Update articles [$SYNC_TYPE sync]: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git commit -m "$COMMIT_MSG"
+            git push
+            echo "✅ Pushed article updates with message: $COMMIT_MSG"
+            
+            # Show what was changed
+            echo "Files changed:"
+            git diff --name-only HEAD~1 HEAD || true
+          fi
+          echo "::endgroup::"
+
+      - name: Trigger medaffairs.tech repository dispatch
+        env:
+          MEDAFFAIRS_TECH_PAT: ${{ secrets.MEDAFFAIRS_TECH_PAT }}
+        run: |
+          echo "::group::Trigger Downstream Update"
+          echo "Triggering medaffairs.tech repository update..."
+          
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $MEDAFFAIRS_TECH_PAT" \
+            https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches \
+            -d '{"event_type":"medaffairs-articles-updated"}')
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "✅ Successfully triggered medaffairs.tech update"
+          else
+            echo "❌ Failed to trigger medaffairs.tech update (HTTP $HTTP_CODE)"
+            echo "Response: $(echo "$RESPONSE" | head -n -1)"
+          fi
+          echo "::endgroup::"
+
+      - name: Log sync completion
+        run: |
+          echo "::group::Sync Summary"
+          echo "🎉 Sync completed successfully"
+          echo "Event: ${{ github.event_name }}"
+          echo "Sync Type: ${{ github.event.inputs.sync_type || 'full' }}"
+          echo "Completed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "::endgroup::"
+
+  rate_limit_skip:
+    runs-on: ubuntu-latest
+    needs: rate_limit_check
+    if: needs.rate_limit_check.outputs.should_run == 'false'
+    steps:
+      - name: Log rate limit skip
+        run: |
+          echo "::warning::Sync skipped due to rate limiting"
+          echo "Last successful manual run: ${{ needs.rate_limit_check.outputs.last_run }}"
+          echo "Rate limit: 1 manual run per 30 minutes"
+          echo "Use 'force_sync' option to override rate limiting"

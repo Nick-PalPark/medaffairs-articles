@@ -35,5 +35,32 @@ If you want, I can:
 - Update the medaffairs.tech repo directly with these files (I can open a PR) so you can review and merge.
 - Or I can walk you step-by-step through adding secrets and enabling the repository_dispatch trigger from medaffairs-data.
 
+## Article Sync Workflow
+
+### Automated Sync
+The repository includes a GitHub Actions workflow (`sync-articles.yml`) that automatically syncs articles:
+- **Schedule**: Runs twice daily at 08:00 UTC and 20:00 UTC
+- **Process**: Fetches new articles from Inoreader → Generates articles.json → Triggers medaffairs.tech update
+
+### Manual Sync
+You can manually trigger article synchronization from the GitHub Actions tab:
+
+1. Go to **Actions** → **Sync Articles with Rate Limiting**
+2. Click **Run workflow**
+3. Configure options:
+   - **Sync Type**:
+     - `full` (default): Complete sync - fetch articles AND generate JSON
+     - `articles_only`: Only fetch new articles, skip JSON generation
+     - `json_only`: Only regenerate JSON from existing articles
+   - **Force Sync**: Override rate limiting (normally 1 manual run per 30 minutes)
+
+### Rate Limiting
+- Manual triggers are rate-limited to prevent excessive API usage
+- Maximum 1 manual run per 30 minutes (unless force sync is enabled)
+- Scheduled runs are never rate-limited
+- Rate limiting only applies to manual `workflow_dispatch` events
+
 DNS / Pages help
-- If you'd like, tell me your DNS host and I'll give exact DNS records to point medaffairs.tech to GitHub Pages.# Setup complete
+- If you'd like, tell me your DNS host and I'll give exact DNS records to point medaffairs.tech to GitHub Pages.
+
+## Setup complete
