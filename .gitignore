@@ -42,6 +42,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Test files
+test_*.json
+test_*.yml
+test_*.md
+
 # Virtual environment
 venv/
 env/
