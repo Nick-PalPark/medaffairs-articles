@@ -61,8 +61,8 @@ jobs:
             RECENT_RUNS=$(gh run list \
               --workflow=sync-articles.yml \
               --limit=10 \
-              --json created_at,event,conclusion \
-              --jq "[.[] | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
+              --json createdAt,event,conclusion \
+              --jq "[.[] | select(.createdAt > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
           else
             # Fallback to direct API call
             RECENT_RUNS=$(curl -s \
@@ -77,7 +77,7 @@ jobs:
           
           if [ "$RECENT_COUNT" -gt 0 ]; then
             echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "last_run=$(echo "$RECENT_RUNS" | jq -r '.[0].created_at')" >> $GITHUB_OUTPUT
+            echo "last_run=$(echo "$RECENT_RUNS" | jq -r '.[0].createdAt')" >> $GITHUB_OUTPUT
             echo "Rate limit hit - skipping run"
           else
             echo "should_run=true" >> $GITHUB_OUTPUT
