@@ -1,112 +1,171 @@
-name: Sync Articles with Rate Limiting
+name: Sync Content Between Repositories
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # Run hourly
+    - cron: '0 * * * *'
   workflow_dispatch:
-    inputs:
-      force_sync:
-        description: 'Force sync (bypass rate limiting)'
-        required: false
-        default: 'false'
-        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout medaffairs-articles
-        uses: actions/checkout@v3
+      - name: Sync Status Logging
+        run: |
+          echo "::group::Sync Job Started"
+          echo "Starting content sync from medaffairs-articles to medaffairs.tech"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "::endgroup::"
+
+      - name: Checkout source repository (medaffairs-articles)
+        uses: actions/checkout@v4
         with:
           repository: Nick-PalPark/medaffairs-articles
           path: source-repo
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_PAT }}
+          fetch-depth: 1
 
-      - name: Checkout medaffairs.tech
-        uses: actions/checkout@v3
+      - name: Checkout destination repository (medaffairs.tech)
+        uses: actions/checkout@v4
         with:
           repository: Nick-PalPark/medaffairs.tech
           path: destination-repo
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Check rate limiting
-        id: rate_limit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_PAT }}
+          fetch-depth: 1
+
+      - name: Configure Git credentials
         run: |
-          echo "::group::Rate Limiting Check"
+          echo "::group::Git Configuration"
+          cd destination-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Git configured for commits"
+          echo "::endgroup::"
+
+      - name: Sync content and check for changes
+        id: sync_content
+        run: |
+          echo "::group::Content Sync Process"
           
-          # Skip rate limiting for scheduled runs or if force_sync is true
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.force_sync }}" = "true" ]; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "Scheduled run or force sync - bypassing rate limit"
-            echo "::endgroup::"
-            exit 0
+          # Error handling - check if both repositories exist
+          if [ ! -d "source-repo" ]; then
+            echo "::error::Source repository not found"
+            exit 1
           fi
           
-          # Check for recent manual runs (within 30 minutes)
-          CUTOFF_TIME=$(date -d '30 minutes ago' -u +'%Y-%m-%dT%H:%M:%SZ')
-          echo "Checking for runs after: $CUTOFF_TIME"
-          
-          # Get recent workflow runs for this workflow  
-          # Try GitHub CLI first, fallback to API
-          if command -v gh >/dev/null 2>&1; then
-            RECENT_RUNS=$(gh run list \
-              --workflow=sync-articles.yml \
-              --limit=10 \
-              --json createdAt,event,conclusion \
-              --jq "[.[] | {created_at: .createdAt, event: .event, conclusion: .conclusion} | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
-          else
-            # Fallback to direct API call
-            RECENT_RUNS=$(curl -s \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=10" | \
-              jq "[.workflow_runs[] | {created_at: .created_at, event: .event, conclusion: .conclusion} | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\" and .name == \"Sync Articles with Rate Limiting\")]")
+          if [ ! -d "destination-repo" ]; then
+            echo "::error::Destination repository not found"
+            exit 1
           fi
           
-          RECENT_COUNT=$(echo "$RECENT_RUNS" | jq length)
-          echo "Recent manual runs in last 30 minutes: $RECENT_COUNT"
+          echo "Both repositories checked out successfully"
           
-          if [ "$RECENT_COUNT" -gt 0 ]; then
-            echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "last_run=$(echo "$RECENT_RUNS" | jq -r '.[0].created_at')" >> $GITHUB_OUTPUT
-            echo "Rate limit hit - skipping run"
+          # Check what content needs to be synced
+          cd source-repo
+          
+          # List available content to sync
+          echo "Source repository content:"
+          ls -la
+          
+          # Determine what needs to be synced based on available content
+          SYNC_NEEDED=false
+          SYNC_SUMMARY=""
+          
+          # Check for articles-updated.json (highest priority)
+          if [ -f "articles-updated.json" ]; then
+            echo "Found articles-updated.json - syncing to destination"
+            mkdir -p ../destination-repo/
+            cp articles-updated.json ../destination-repo/articles-updated.json
+            SYNC_NEEDED=true
+            SYNC_SUMMARY="${SYNC_SUMMARY}articles-updated.json "
+          fi
+          
+          # Check for articles.json (fallback)
+          if [ -f "articles.json" ] && [ ! -f "articles-updated.json" ]; then
+            echo "Found articles.json - syncing to destination as articles-updated.json"
+            mkdir -p ../destination-repo/
+            cp articles.json ../destination-repo/articles-updated.json
+            SYNC_NEEDED=true
+            SYNC_SUMMARY="${SYNC_SUMMARY}articles.json->articles-updated.json "
+          fi
+          
+          # Check for static content (if it exists)
+          if [ -d "static" ]; then
+            echo "Found static directory - syncing to destination"
+            mkdir -p ../destination-repo/
+            cp -r static/* ../destination-repo/ 2>/dev/null || true
+            SYNC_NEEDED=true
+            SYNC_SUMMARY="${SYNC_SUMMARY}static/ "
+          fi
+          
+          # Check for index.html
+          if [ -f "index.html" ]; then
+            echo "Found index.html - syncing to destination"
+            cp index.html ../destination-repo/index.html
+            SYNC_NEEDED=true
+            SYNC_SUMMARY="${SYNC_SUMMARY}index.html "
+          fi
+          
+          # Output sync status
+          echo "sync_needed=$SYNC_NEEDED" >> $GITHUB_OUTPUT
+          echo "sync_summary=$SYNC_SUMMARY" >> $GITHUB_OUTPUT
+          
+          if [ "$SYNC_NEEDED" = "false" ]; then
+            echo "::warning::No content found to sync"
           else
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "No recent runs - proceeding"
+            echo "Content synced: $SYNC_SUMMARY"
           fi
           
           echo "::endgroup::"
 
-      - name: Sync if allowed
-        if: steps.rate_limit.outputs.should_run == 'true'
+      - name: Commit and push changes
+        if: steps.sync_content.outputs.sync_needed == 'true'
         run: |
-          echo "Syncing articles..."
-          # Copy new articles from source to destination
-          cd source-repo
+          echo "::group::Commit and Push Changes"
+          cd destination-repo
           
-          # Assuming articles are in a specific directory, e.g., 'articles' or 'content'
-          # Adjust these paths based on your actual repository structure
-          if [ -d "articles" ]; then
-            echo "Found articles directory"
-            cp -r articles/* ../destination-repo/content/articles/
-          fi
-          
-          # Commit and push changes if any
-          cd ../destination-repo
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          
-          if git status --porcelain | grep .; then
-            echo "Changes detected, committing..."
+          # Check for actual changes
+          if git status --porcelain | grep -q .; then
+            echo "Changes detected in destination repository"
             git add .
-            git commit -m "Sync articles from medaffairs-articles [skip ci]"
-            git push
+            
+            # Create detailed commit message
+            git commit -m "Sync content from medaffairs-articles"
+            
+            # Push with error handling
+            if git push; then
+              echo "::notice::Successfully pushed changes to medaffairs.tech"
+              echo "changes_pushed=true" >> $GITHUB_OUTPUT
+            else
+              echo "::error::Failed to push changes"
+              exit 1
+            fi
           else
-            echo "No changes to sync"
+            echo "::notice::No changes to commit - content already up to date"
+            echo "changes_pushed=false" >> $GITHUB_OUTPUT
           fi
+          
+          echo "::endgroup::"
 
-permissions:
-  contents: write
-  actions: read
+      - name: Skip empty runs
+        if: steps.sync_content.outputs.sync_needed == 'false'
+        run: |
+          echo "::group::Empty Run Handling"
+          echo "::notice::Skipping run - no content changes detected"
+          echo "This is expected behavior when source content hasn't changed"
+          echo "::endgroup::"
+
+      - name: Sync completion logging
+        if: always()
+        run: |
+          echo "::group::Sync Job Summary"
+          echo "Sync Status: ${{ steps.sync_content.outputs.sync_needed == 'true' && 'SUCCESS' || 'SKIPPED' }}"
+          echo "Content Synced: ${{ steps.sync_content.outputs.sync_summary || 'None' }}"
+          echo "Changes Pushed: ${{ steps.sync_content.outputs.changes_pushed || 'N/A' }}"
+          echo "End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "::endgroup::"
