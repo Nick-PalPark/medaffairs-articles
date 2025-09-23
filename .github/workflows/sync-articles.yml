@@ -1,3 +1,25 @@
+# GitHub Actions workflow for syncing content between repositories
+# 
+# This workflow automatically syncs content from the medaffairs-articles repository
+# to the medaffairs.tech repository. It runs hourly and can be manually triggered.
+#
+# Requirements:
+# - SOURCE_REPO_PAT secret must be configured with repository access permissions
+# - The PAT needs access to both source (medaffairs-articles) and destination (medaffairs.tech) repos
+#
+# What it syncs:
+# - articles-updated.json (highest priority)
+# - articles.json (fallback, renamed to articles-updated.json)
+# - static/ directory contents
+# - index.html file
+#
+# Features:
+# - Hourly automatic sync
+# - Manual triggering via workflow_dispatch
+# - Comprehensive error handling and logging
+# - Skips runs when no content changes detected
+# - Only commits and pushes when changes are found
+
 name: Sync Content Between Repositories
 
 on:
@@ -135,7 +157,7 @@ jobs:
             git add .
             
             # Create detailed commit message
-            git commit -m "Sync content from medaffairs-articles"
+            git commit -m "Sync content from medaffairs-articles - Run ${{ github.run_id }} at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
             
             # Push with error handling
             if git push; then
