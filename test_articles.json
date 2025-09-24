@@ -1,0 +1,11 @@
+[
+  {
+    "id": "example-article.md",
+    "title": "Example Article",
+    "url": null,
+    "published": null,
+    "source": null,
+    "filepath": "articles/example-article.md",
+    "manual_title": "My Custom Article Title"
+  }
+]

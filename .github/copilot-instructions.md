@@ -1,169 +1,177 @@
-# MedAffairs.tech Website
+# MedAffairs Articles Repository
 
-MedAffairs.tech is a static HTML website that displays medical and healthcare news articles organized into three categories: Industry News, Tech Insights, and Products & Opinion. The site features hero articles at the top and categorized article lists below.
+This repository manages medical and healthcare news articles for the MedAffairs.tech website. It contains tools to capture articles from Inoreader, process them into markdown files, generate JSON feeds, and sync data with the public website.
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
 ## Working Effectively
 
-### Bootstrap and Serve the Website
-- Navigate to repository root: `cd /home/runner/work/medaffairs.tech/medaffairs.tech`
-- Start local server: `python3 -m http.server 8000` -- Takes <5 seconds to start. NEVER CANCEL.
-- Access site at: `http://localhost:8000`
-- Stop server: `Ctrl+C` or `killall python3`
+### Bootstrap and Development Environment
+- Navigate to repository root: `cd /home/runner/work/medaffairs-articles/medaffairs-articles`
+- Install dependencies: `pip3 install -r requirements.txt` (takes ~30 seconds)
+- Create config: `cp config_template.py config.py` and fill in Inoreader credentials
+- Test setup: `python3 test_capture.py` (should show 3/3 tests passing)
 
-### Alternative Serving Methods
-- Any HTTP server works: `npx serve .`, `php -S localhost:8000`, Node.js `http-server`
-- File:// URLs do NOT work due to CORS restrictions with JSON loading
+### Alternative Setup
+- Use virtual environment: `python3 -m venv venv && source venv/bin/activate`
+- Or use the wrapper script: `./run_capture.sh` (handles venv setup automatically)
 
 ## Validation
 
-### ALWAYS Test Complete User Scenarios
+### ALWAYS Test Complete Workflows
 After making any changes, ALWAYS validate by:
-1. `python3 -m http.server 8000` -- Set timeout to 30+ seconds
-2. Navigate to `http://localhost:8000` in browser or Playwright
-3. Verify all three sections load articles (not "Error loading..." messages)
-4. Check hero articles display with images and titles
-5. Verify "Last updated" timestamp appears
-6. Test clicking article links (they should open)
-7. Stop the server when done
+1. Run tests: `python3 test_capture.py` -- Should pass 3/3 tests
+2. Test JSON generation: `python3 scripts/generate_articles_json.py --output test.json`
+3. Verify JSON format: `python3 -c "import json; print(json.load(open('test.json')))"`
+4. Test article capture if config available: `python3 capture_articles.py --dry-run`
+5. Check markdown parsing works correctly on sample files
 
 ### Manual Validation Requirements
-- ALWAYS serve the site and visually inspect it after changes
-- Check browser console for JavaScript errors
-- Verify JSON loads correctly: `curl http://localhost:8000/articles-updated.json`
-- Test responsive design on mobile viewport if CSS changes made
+- ALWAYS run tests after code changes to capture workflow
+- Verify JSON generation preserves manual_title values
+- Test markdown file parsing for title and metadata extraction
+- Validate output JSON structure matches expected format
 
 ## Data Format Requirements
 
-### Critical: articles-updated.json Structure
-The JavaScript expects this EXACT structure:
+### Critical: articles.json Structure
+The JSON generation script outputs this structure:
 ```json
-{
-  "last_updated": "2025-09-11T00:24:37.335021",
-  "heroes": [
-    {
-      "title": "Article Title",
-      "url": "https://example.com/article",
-      "cover_image": "https://example.com/image.jpg"
-    }
-  ],
-  "industry": [
-    {
-      "title": "Industry Article Title", 
-      "url": "https://example.com/industry-article"
-    }
-  ],
-  "tech": [
-    {
-      "title": "Tech Article Title",
-      "url": "https://example.com/tech-article"  
-    }
-  ],
-  "opinion": [
-    {
-      "title": "Opinion Article Title",
-      "url": "https://example.com/opinion-article"
-    }
-  ]
-}
+[
+  {
+    "id": "filename.md",
+    "title": "Article Title from # Heading",
+    "url": "https://example.com/article",
+    "published": "2024-01-01T12:00:00Z",
+    "source": "Source Name",
+    "filepath": "articles/filename.md",
+    "manual_title": "Custom Title (preserved)"
+  }
+]
+```
+
+### Markdown File Format
+Articles are stored as markdown files with this structure:
+```markdown
+# Article Title
+
+**URL:** https://example.com/article
+**Published:** 2024-01-01
+**Source:** Source Name
+
+Article content goes here...
 ```
 
 ### Common Data Issues
-- If you see "Error loading..." messages, the JSON structure is wrong
-- Missing `heroes`, `industry`, `tech`, or `opinion` arrays causes errors
-- `last_updated` field is optional but recommended
-- `cover_image` is optional for heroes but recommended for visual appeal
+- Missing `# Title` heading causes title extraction to fail
+- Invalid **URL:** format won't be parsed correctly
+- manual_title values are preserved when regenerating JSON
+- File ID is derived from filename, used for matching existing entries
 
 ## File Structure and Navigation
 
 ### Repository Root Contents
 ```
 .
-├── index.html          # Main HTML file with embedded JavaScript
-├── style.css          # All styling (responsive design included)
-├── articles-updated.json # Article data (must match expected structure)
-└── .github/
-    └── copilot-instructions.md # This file
+├── capture_articles.py     # Main article capture script
+├── scripts/
+│   └── generate_articles_json.py  # Convert markdown to JSON
+├── articles/               # Markdown files storage
+├── config_template.py      # Configuration template
+├── test_capture.py         # Test suite
+├── requirements.txt        # Python dependencies
+├── .github/workflows/      # GitHub Actions workflows
+└── data/articles.json      # Generated JSON for website
 ```
 
 ### Key Code Locations
-- **Article loading logic**: Lines 52-97 in `index.html`
-- **Hero section**: Lines 64-72 in `index.html` 
-- **Category sections**: Lines 74-90 in `index.html`
-- **Responsive CSS**: Lines 34-35 in `style.css`
-- **Error handling**: Lines 92-97 in `index.html`
+- **Article capture logic**: `capture_articles.py`, class `InoreaderClient`
+- **JSON generation**: `scripts/generate_articles_json.py`, function `parse_mdfile`
+- **HTML cleaning**: `capture_articles.py`, method `clean_html_content`
+- **File processing**: `capture_articles.py`, class `ArticleProcessor`
+- **Tests**: `test_capture.py`, functions `test_*`
 
 ## Common Tasks
 
-### Updating Article Data
-1. Edit `articles-updated.json` with correct structure
-2. Validate JSON syntax: `python3 -c "import json; json.load(open('articles-updated.json'))"`
-3. ALWAYS test by serving site: `python3 -m http.server 8000`
-4. Verify articles display correctly at `http://localhost:8000`
+### Adding New Articles
+1. Create markdown file in `articles/` directory
+2. Follow the standard format with `# Title` and metadata
+3. Generate JSON: `python3 scripts/generate_articles_json.py`
+4. Validate: `python3 -c "import json; json.load(open('articles.json'))"`
 
-### Styling Changes  
-1. Edit `style.css`
-2. ALWAYS test responsive design: resize browser or use mobile viewport
-3. Test hero section, column layout, and footer
-4. Verify changes work on both desktop and mobile
+### Updating Article Processing
+1. Edit `capture_articles.py` for capture logic changes
+2. Edit `scripts/generate_articles_json.py` for JSON generation changes
+3. ALWAYS run tests: `python3 test_capture.py`
+4. Test with sample data before production use
 
-### HTML Structure Changes
-1. Edit `index.html`  
-2. Be careful with JavaScript section (lines 50-99)
-3. Maintain existing element classes and IDs for CSS compatibility
-4. ALWAYS validate by serving the site
+### Managing Manual Titles
+1. Edit `articles.json` directly to add `manual_title` field
+2. Regenerate JSON: `python3 scripts/generate_articles_json.py --existing articles.json`
+3. Manual titles are preserved when regenerating from markdown files
+4. Match by URL or filename to preserve custom titles
 
 ### Troubleshooting Common Issues
-- **"Error loading..." messages**: Check JSON structure matches expected format
-- **Images not loading**: Verify `cover_image` URLs are accessible
-- **Links not working**: Check `url` fields in JSON are valid
-- **Site not accessible**: Ensure HTTP server is running, not using file:// URLs
-- **JavaScript errors**: Check browser console, validate JSON syntax
+- **Import errors**: Run `pip3 install -r requirements.txt`
+- **Config not found**: Copy `config_template.py` to `config.py` and configure
+- **Test failures**: Check dependencies and file permissions
+- **JSON generation fails**: Verify markdown files have proper `# Title` format
+- **Manual titles lost**: Use `--existing` parameter when regenerating
 
 ## Build and Deployment
 
 ### No Build Process Required
-- This is a static website with no build steps
-- No dependencies, package managers, or compilation needed
-- Deploy by copying files to any HTTP server
-- No CI/CD pipeline currently exists
+- This is a Python-based data processing repository
+- No compilation or bundling needed
+- Dependencies managed via pip/requirements.txt
+- GitHub Actions handle automated workflows
 
-### Adding CI/CD (Optional)
-If you want to add automated deployment:
-1. Create `.github/workflows/deploy.yml`
-2. Add JSON validation step: `python3 -c "import json; json.load(open('articles-updated.json'))"`
-3. Add HTML validation if needed
-4. Deploy to GitHub Pages or any static hosting
+### GitHub Actions Workflows
+The repository includes several automated workflows:
+1. **sync-articles.yml**: Captures articles and syncs with website (runs every 30 minutes)
+2. **sync_data.yml**: Syncs articles.json from private data repository
+3. **update_data.yml**: Updates data on external triggers
+
+### Manual Workflow Triggers
+You can manually trigger workflows from GitHub Actions tab:
+- **Sync Articles**: Full capture and JSON generation
+- **Force Sync**: Override rate limiting
+- **Data Sync**: Sync from private repository
 
 ## Performance Notes
 
 ### Timing Expectations
-- HTTP server startup: <5 seconds
-- Initial page load: <2 seconds  
-- JSON fetch and render: <1 second
-- Full validation cycle: <30 seconds total
+- Test suite: ~5 seconds for 3 tests
+- JSON generation: ~2 seconds for typical article count
+- Article capture: ~30-60 seconds (depends on API responses)
+- Full workflow: ~2-5 minutes total
 
-### No Long-Running Operations
-- No build processes that take minutes
-- No test suites to run
-- No database setup required
-- All validation is near-instant
+### Rate Limiting
+- Inoreader API has rate limits - respect them
+- Manual workflow runs limited to once per 30 minutes
+- Scheduled runs bypass rate limiting
+- Use `force_sync` option to override if needed
 
 ## Development Workflow
 
 ### Making Changes
-1. Edit files directly (no build required)
-2. Start HTTP server to test: `python3 -m http.server 8000`
-3. Refresh browser to see changes
-4. Validate complete user scenario
-5. Stop server and commit changes
+1. Install dependencies: `pip3 install -r requirements.txt`
+2. Run existing tests: `python3 test_capture.py`
+3. Make focused changes to specific components
+4. Re-run tests to validate changes
+5. Test with sample data before committing
 
 ### Testing New Features
-1. Always backup `articles-updated.json` before major changes
+1. Add test cases to `test_capture.py` following existing patterns
 2. Test with minimal data first, then full dataset
-3. Verify error handling works (empty arrays, missing fields)
-4. Test edge cases like very long article titles
-5. Validate responsive design changes on mobile
+3. Verify JSON structure matches expected format
+4. Test manual_title preservation across regenerations
+5. Validate markdown parsing edge cases
 
-Remember: This is a simple static website. Most operations complete in seconds, not minutes. Always validate changes by actually serving and viewing the site.
+### Configuration Management
+- Never commit `config.py` with real credentials
+- Use `config_template.py` for documentation
+- Set up GitHub secrets for automated workflows
+- Test configuration changes with dry-run mode
+
+Remember: This is a data processing pipeline. Most operations complete quickly, but API calls may take longer. Always test locally before pushing changes that affect article capture or processing.
