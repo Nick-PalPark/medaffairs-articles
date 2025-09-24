@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Second Test Article",
+    "snappy_title": "Another Great Article!",
+    "url": "https://example.com/test2",
+    "author": "Another Author",
+    "date": "2025-09-24T14:42:56.604384+00:00",
+    "category": "technology",
+    "cover_image": "https://example.com/image.jpg",
+    "processed_at": "2025-09-24T14:42:56.604397+00:00"
+  },
+  {
+    "title": "Test Article",
+    "snappy_title": "Amazing Test!",
+    "url": "https://example.com/test",
+    "author": "Test Author",
+    "date": "2025-09-24T14:42:32.140460+00:00",
+    "category": "test",
+    "cover_image": "",
+    "processed_at": "2025-09-24T14:42:32.140471+00:00"
+  }
+]

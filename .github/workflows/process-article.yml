@@ -1,0 +1,178 @@
+name: Process Article via Webhook
+
+on:
+  repository_dispatch:
+    types: [new-article]
+  workflow_dispatch:
+    inputs:
+      test_article:
+        description: 'Test article JSON data'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  process-article:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create _data directory
+        run: mkdir -p _data
+
+      - name: Process new article
+        id: process_article
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          
+          def load_existing_articles():
+              """Load existing articles from _data/articles.json"""
+              articles_file = Path("_data/articles.json")
+              if articles_file.exists():
+                  try:
+                      with open(articles_file, 'r', encoding='utf-8') as f:
+                          data = json.load(f)
+                          return data if isinstance(data, list) else []
+                  except (json.JSONDecodeError, IOError) as e:
+                      print(f"Error loading existing articles: {e}")
+                      return []
+              return []
+          
+          def save_articles(articles):
+              """Save articles array to _data/articles.json"""
+              articles_file = Path("_data/articles.json")
+              try:
+                  with open(articles_file, 'w', encoding='utf-8') as f:
+                      json.dump(articles, f, indent=2, ensure_ascii=False)
+                  print(f"Successfully saved {len(articles)} articles to {articles_file}")
+                  return True
+              except IOError as e:
+                  print(f"Error saving articles: {e}")
+                  return False
+          
+          def process_webhook_data():
+              """Process article data from webhook payload or manual input"""
+              # Get webhook payload or manual test data
+              webhook_payload = os.environ.get('GITHUB_EVENT_PAYLOAD', '{}')
+              test_article = os.environ.get('INPUT_TEST_ARTICLE', '')
+              
+              try:
+                  if test_article:
+                      # Manual workflow dispatch with test data
+                      article_data = json.loads(test_article)
+                      print("Processing test article data")
+                  else:
+                      # Repository dispatch webhook
+                      payload = json.loads(webhook_payload)
+                      article_data = payload.get('client_payload', {})
+                      print("Processing webhook article data")
+                  
+                  if not article_data:
+                      print("No article data found in payload")
+                      return False
+                  
+                  # Validate required fields
+                  required_fields = ['title', 'url']
+                  for field in required_fields:
+                      if not article_data.get(field):
+                          print(f"Missing required field: {field}")
+                          return False
+                  
+                  # Load existing articles
+                  articles = load_existing_articles()
+                  
+                  # Check if article already exists (by URL)
+                  existing_urls = {article.get('url') for article in articles}
+                  if article_data['url'] in existing_urls:
+                      print(f"Article already exists: {article_data['url']}")
+                      return False
+                  
+                  # Create new article with required structure
+                  new_article = {
+                      'title': article_data.get('title', ''),
+                      'snappy_title': article_data.get('snappy_title', ''),
+                      'url': article_data.get('url', ''),
+                      'author': article_data.get('author', 'Unknown'),
+                      'date': article_data.get('date', datetime.now(timezone.utc).isoformat()),
+                      'category': article_data.get('category', 'general'),
+                      'cover_image': article_data.get('cover_image', ''),
+                      'processed_at': datetime.now(timezone.utc).isoformat()
+                  }
+                  
+                  # Add new article to the beginning of the array (most recent first)
+                  articles.insert(0, new_article)
+                  
+                  # Save updated articles
+                  if save_articles(articles):
+                      print(f"Successfully added new article: {new_article['title']}")
+                      print(f"Total articles: {len(articles)}")
+                      return True
+                  else:
+                      return False
+                      
+              except json.JSONDecodeError as e:
+                  print(f"Error parsing JSON data: {e}")
+                  return False
+              except Exception as e:
+                  print(f"Unexpected error: {e}")
+                  return False
+          
+          # Process the article
+          success = process_webhook_data()
+          
+          # Set output for next step
+          if success:
+              print("article_processed=true")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("article_processed=true\n")
+          else:
+              print("article_processed=false") 
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("article_processed=false\n")
+          EOF
+
+      - name: Commit and push changes
+        if: steps.process_article.outputs.article_processed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if there are changes to commit
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add _data/articles.json
+          git commit -m "Add new article via webhook [skip ci]"
+          git push
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.process_article.outputs.article_processed }}" == "true" ]; then
+            echo "✅ Article successfully processed and added to _data/articles.json"
+          else
+            echo "❌ Article processing failed or no new article to add"
+          fi
+
+permissions:
+  contents: write
+  actions: read
