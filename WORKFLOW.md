@@ -2,10 +2,10 @@
 
 ## Streamlined Workflow: update_data.yml
 
-This repository features a single, comprehensive GitHub Actions workflow that handles the complete article processing pipeline from RSS capture to website publication.
+This repository features a single, comprehensive GitHub Actions workflow that handles the complete article processing pipeline from Zapier table to website publication.
 
 ### What it does:
-1. **Captures articles** - Runs `capture_articles.py` to fetch new articles from Inoreader and save as markdown files in `articles/`
+1. **Captures articles** - Runs `capture_articles.py` to fetch new articles from Zapier table and save as markdown files in `articles/`
 2. **Generates raw JSON** - Uses `scripts/generate_articles_json.py` to create `articles.json` from all markdown files
 3. **Transforms for website** - Uses `scripts/transform_to_site_format.py` to convert raw data to structured format in `data/articles.json`
 4. **Preserves manual titles** - Any `manual_title` values in existing articles.json are preserved when rebuilding
@@ -17,11 +17,11 @@ This repository features a single, comprehensive GitHub Actions workflow that ha
 - Can be triggered manually via workflow_dispatch
 
 ### Requirements:
-- `INOREADER_APP_ID`, `INOREADER_APP_KEY`, `INOREADER_USERNAME`, `INOREADER_PASSWORD` secrets for RSS access
+- `ZAPIER_TABLE_ID`, `ZAPIER_API_KEY` secrets for table access
 - `MEDAFFAIRS_TECH_PAT` secret with repository dispatch permissions for medaffairs.tech repo
 
 ### Scripts:
-- `capture_articles.py` - Main capture script that fetches articles from Inoreader RSS feeds
+- `capture_articles.py` - Main capture script that fetches articles from Zapier table
 - `scripts/generate_articles_json.py` - Converts markdown files to raw JSON array format
   - Extracts titles from `# Title` headings
   - Parses metadata like `**URL:**`, `**Published:**`, `**Source:**`
