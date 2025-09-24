@@ -126,7 +126,7 @@ class TestArticleProcessor:
 {clean_content}
 
 ---
-*Captured from Inoreader on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
+*Captured from Zapier Table on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
 """
             
             # Save file
