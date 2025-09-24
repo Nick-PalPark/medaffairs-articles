@@ -45,4 +45,4 @@ Thumbs.db
 # Virtual environment
 venv/
 env/
-ENV/
+ENV/config.py
