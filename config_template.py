@@ -1,18 +1,13 @@
-# Inoreader API Configuration
+# Zapier Table API Configuration
 # Copy this file to config.py and fill in your actual credentials
 
-# Inoreader API credentials
-# Get these from https://www.inoreader.com/developers/
-INOREADER_APP_ID = "your_app_id_here"
-INOREADER_APP_KEY = "your_app_key_here"
-
-# OAuth2 credentials (obtained after app registration)
-INOREADER_USERNAME = "your_username"
-INOREADER_PASSWORD = "your_password"
+# Zapier Table API credentials
+# The table URL: https://tables.zapier.com/app/tables/t/01K4QYZXV51PJBZ3P9FWQB5MRA
+ZAPIER_TABLE_ID = "01K4QYZXV51PJBZ3P9FWQB5MRA"
+ZAPIER_API_KEY = "your_zapier_api_key_here"  # API key for accessing Zapier tables
 
 # API endpoints
-INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
-INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+ZAPIER_API_BASE = "https://tables.zapier.com/api/v1/tables"
 
 # Output settings
 ARTICLES_DIR = "articles"

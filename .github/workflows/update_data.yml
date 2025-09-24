@@ -1,4 +1,4 @@
-name: Capture articles and update website
+name: Capture articles from Zapier table and update website
 
 on:
   workflow_dispatch:
@@ -29,22 +29,17 @@ jobs:
 
       - name: Create config.py from repository secrets
         env:
-          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
-          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
-          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
-          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+          ZAPIER_TABLE_ID: ${{ secrets.ZAPIER_TABLE_ID }}
+          ZAPIER_API_KEY: ${{ secrets.ZAPIER_API_KEY }}
         run: |
           cat > config.py <<'EOL'
           # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
           # Populated from repository secrets at runtime by Actions
 
-          INOREADER_APP_ID = '$INOREADER_APP_ID'
-          INOREADER_APP_KEY = '$INOREADER_APP_KEY'
-          INOREADER_USERNAME = '$INOREADER_USERNAME'
-          INOREADER_PASSWORD = '$INOREADER_PASSWORD'
+          ZAPIER_TABLE_ID = '$ZAPIER_TABLE_ID'
+          ZAPIER_API_KEY = '$ZAPIER_API_KEY'
 
-          INOREADER_API_BASE = "https://www.inoreader.com/reader/api/0/"
-          INOREADER_AUTH_URL = "https://www.inoreader.com/oauth2/token"
+          ZAPIER_API_BASE = "https://tables.zapier.com/api/v1/tables"
 
           ARTICLES_DIR = "articles"
           MAX_ARTICLES = 50
@@ -53,24 +48,20 @@ jobs:
 
       - name: Debug - verify secrets are available and config.py present
         env:
-          INOREADER_APP_ID: ${{ secrets.INOREADER_APP_ID }}
-          INOREADER_APP_KEY: ${{ secrets.INOREADER_APP_KEY }}
-          INOREADER_USERNAME: ${{ secrets.INOREADER_USERNAME }}
-          INOREADER_PASSWORD: ${{ secrets.INOREADER_PASSWORD }}
+          ZAPIER_TABLE_ID: ${{ secrets.ZAPIER_TABLE_ID }}
+          ZAPIER_API_KEY: ${{ secrets.ZAPIER_API_KEY }}
         run: |
           # Confirm the secret env vars are present (we print only whether they're set)
-          if [ -z "$INOREADER_APP_ID" ]; then echo "INOREADER_APP_ID is empty"; else echo "INOREADER_APP_ID is set"; fi
-          if [ -z "$INOREADER_APP_KEY" ]; then echo "INOREADER_APP_KEY is empty"; else echo "INOREADER_APP_KEY is set"; fi
-          if [ -z "$INOREADER_USERNAME" ]; then echo "INOREADER_USERNAME is empty"; else echo "INOREADER_USERNAME is set"; fi
-          if [ -z "$INOREADER_PASSWORD" ]; then echo "INOREADER_PASSWORD is empty"; else echo "INOREADER_PASSWORD is set"; fi
+          if [ -z "$ZAPIER_TABLE_ID" ]; then echo "ZAPIER_TABLE_ID is empty"; else echo "ZAPIER_TABLE_ID is set"; fi
+          if [ -z "$ZAPIER_API_KEY" ]; then echo "ZAPIER_API_KEY is empty"; else echo "ZAPIER_API_KEY is set"; fi
 
           # Confirm config.py exists and show the keys (values are redacted here)
           ls -la config.py || true
-          grep -E "INOREADER_APP_(ID|KEY)|INOREADER_USERNAME|INOREADER_PASSWORD" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
+          grep -E "ZAPIER_TABLE_ID|ZAPIER_API_KEY" config.py | sed -E "s/(=\s*).+/\\1\"<redacted>\"/"
 
       - name: Run capture script
         run: |
-          # capture_articles.py writes markdown files into the articles/ directory
+          # capture_articles.py writes markdown files into the articles/ directory from Zapier table
           python capture_articles.py
 
       - name: Generate articles.json from updated markdown files
