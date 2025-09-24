@@ -1,4 +1,4 @@
-name: Run capture and publish articles.json
+name: Capture articles and update website
 
 on:
   workflow_dispatch:
@@ -78,13 +78,18 @@ jobs:
           # Use the generate_articles_json.py script to create a JSON file from articles/*.md
           python scripts/generate_articles_json.py --articles-dir articles --output articles.json
 
+      - name: Transform to site format
+        run: |
+          # Transform the raw articles.json to the structured format expected by the website
+          python scripts/transform_to_site_format.py --input articles.json --output data/articles.json
+
       - name: Commit and push changes if any
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Add any changes (new markdown files in articles/, updated articles.json)
-          git add articles/ articles.json
+          # Add any changes (new markdown files in articles/, updated articles.json, and site data)
+          git add articles/ articles.json data/articles.json
           
           # Commit if there are changes
           if git diff --staged --quiet; then
