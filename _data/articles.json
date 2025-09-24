@@ -1,0 +1,45 @@
+{
+  "articles": [
+    {
+      "id": "rec123456",
+      "article_title": "Updated Sample Article Title",
+      "snappy_title": "Even More Amazing Updated Sample Article!",
+      "feed_title": "Updated Sample Feed",
+      "article_url": "https://example.com/sample-article",
+      "cover_image": "https://via.placeholder.com/400x300",
+      "article_content": "Updated article content for testing",
+      "ai_category": "industry",
+      "article_date": "2024-01-15T11:30:00Z",
+      "published_timestamp": 1705318200000,
+      "tags": [
+        "health",
+        "technology",
+        "update"
+      ],
+      "table_record_id": "rec123456",
+      "created_at": "2025-09-24T15:22:31.088432",
+      "updated_at": "2025-09-24T15:22:58.794367"
+    },
+    {
+      "id": "rec789012",
+      "article_title": "Second Test Article",
+      "snappy_title": "Second Article Rocks!",
+      "feed_title": "Another Feed",
+      "article_url": "https://example.com/second-article",
+      "cover_image": "https://via.placeholder.com/350x250",
+      "article_content": "This is another test article with different content",
+      "ai_category": "opinion",
+      "article_date": "2024-01-16T09:15:00Z",
+      "published_timestamp": 1705396500000,
+      "tags": [
+        "medical",
+        "opinion",
+        "analysis"
+      ],
+      "table_record_id": "rec789012",
+      "created_at": "2025-09-24T15:23:28.833438",
+      "updated_at": "2025-09-24T15:23:28.833446"
+    }
+  ],
+  "last_updated": "2025-09-24T15:23:28.833470"
+}

@@ -1,0 +1,259 @@
+name: Process Article Webhook
+
+on:
+  repository_dispatch:
+    types: [process-article]
+  workflow_dispatch:
+    inputs:
+      ai_category:
+        description: 'AI-generated category for the article'
+        required: false
+        type: string
+        default: 'tech'
+      article_content:
+        description: 'Article content/summary'
+        required: false
+        type: string
+        default: 'Sample article content for testing'
+      article_date:
+        description: 'Article publication date (ISO format)'
+        required: false
+        type: string
+        default: '2024-01-15T10:30:00Z'
+      article_title:
+        description: 'Article title'
+        required: true
+        type: string
+        default: 'Sample Article Title'
+      article_url:
+        description: 'Article URL'
+        required: true
+        type: string
+        default: 'https://example.com/sample-article'
+      cover_image:
+        description: 'Article cover image URL'
+        required: false
+        type: string
+        default: 'https://via.placeholder.com/300x200'
+      feed_title:
+        description: 'Original feed/source title'
+        required: false
+        type: string
+        default: 'Sample Feed'
+      snappy_title:
+        description: 'AI-generated snappy title'
+        required: false
+        type: string
+        default: 'Amazing Sample Article!'
+      table_record_id:
+        description: 'Database record ID'
+        required: false
+        type: string
+        default: 'rec123456'
+      tags:
+        description: 'Article tags (comma-separated)'
+        required: false
+        type: string
+        default: 'health,technology'
+
+permissions:
+  contents: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Extract webhook data
+        id: extract_data
+        run: |
+          # Extract data from either repository_dispatch or workflow_dispatch
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Extract from repository_dispatch payload
+            AI_CATEGORY="${{ github.event.client_payload.ai_category }}"
+            ARTICLE_CONTENT="${{ github.event.client_payload.article_content }}"
+            ARTICLE_DATE="${{ github.event.client_payload.article_date }}"
+            ARTICLE_TITLE="${{ github.event.client_payload.article_title }}"
+            ARTICLE_URL="${{ github.event.client_payload.article_url }}"
+            COVER_IMAGE="${{ github.event.client_payload.cover_image }}"
+            FEED_TITLE="${{ github.event.client_payload.feed_title }}"
+            SNAPPY_TITLE="${{ github.event.client_payload.snappy_title }}"
+            TABLE_RECORD_ID="${{ github.event.client_payload.table_record_id }}"
+            TAGS="${{ github.event.client_payload.tags }}"
+          else
+            # Extract from workflow_dispatch inputs
+            AI_CATEGORY="${{ inputs.ai_category }}"
+            ARTICLE_CONTENT="${{ inputs.article_content }}"
+            ARTICLE_DATE="${{ inputs.article_date }}"
+            ARTICLE_TITLE="${{ inputs.article_title }}"
+            ARTICLE_URL="${{ inputs.article_url }}"
+            COVER_IMAGE="${{ inputs.cover_image }}"
+            FEED_TITLE="${{ inputs.feed_title }}"
+            SNAPPY_TITLE="${{ inputs.snappy_title }}"
+            TABLE_RECORD_ID="${{ inputs.table_record_id }}"
+            TAGS="${{ inputs.tags }}"
+          fi
+          
+          # Set outputs for next steps
+          echo "ai_category=${AI_CATEGORY}" >> $GITHUB_OUTPUT
+          echo "article_content=${ARTICLE_CONTENT}" >> $GITHUB_OUTPUT
+          echo "article_date=${ARTICLE_DATE}" >> $GITHUB_OUTPUT
+          echo "article_title=${ARTICLE_TITLE}" >> $GITHUB_OUTPUT
+          echo "article_url=${ARTICLE_URL}" >> $GITHUB_OUTPUT
+          echo "cover_image=${COVER_IMAGE}" >> $GITHUB_OUTPUT
+          echo "feed_title=${FEED_TITLE}" >> $GITHUB_OUTPUT
+          echo "snappy_title=${SNAPPY_TITLE}" >> $GITHUB_OUTPUT
+          echo "table_record_id=${TABLE_RECORD_ID}" >> $GITHUB_OUTPUT
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+      - name: Ensure _data directory exists
+        run: |
+          mkdir -p _data
+
+      - name: Process article data
+        env:
+          AI_CATEGORY: ${{ steps.extract_data.outputs.ai_category }}
+          ARTICLE_CONTENT: ${{ steps.extract_data.outputs.article_content }}
+          ARTICLE_DATE: ${{ steps.extract_data.outputs.article_date }}
+          ARTICLE_TITLE: ${{ steps.extract_data.outputs.article_title }}
+          ARTICLE_URL: ${{ steps.extract_data.outputs.article_url }}
+          COVER_IMAGE: ${{ steps.extract_data.outputs.cover_image }}
+          FEED_TITLE: ${{ steps.extract_data.outputs.feed_title }}
+          SNAPPY_TITLE: ${{ steps.extract_data.outputs.snappy_title }}
+          TABLE_RECORD_ID: ${{ steps.extract_data.outputs.table_record_id }}
+          TAGS: ${{ steps.extract_data.outputs.tags }}
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+          
+          # Get environment variables
+          ai_category = os.environ.get('AI_CATEGORY', '').strip()
+          article_content = os.environ.get('ARTICLE_CONTENT', '').strip()
+          article_date = os.environ.get('ARTICLE_DATE', '').strip()
+          article_title = os.environ.get('ARTICLE_TITLE', '').strip()
+          article_url = os.environ.get('ARTICLE_URL', '').strip()
+          cover_image = os.environ.get('COVER_IMAGE', '').strip()
+          feed_title = os.environ.get('FEED_TITLE', '').strip()
+          snappy_title = os.environ.get('SNAPPY_TITLE', '').strip()
+          table_record_id = os.environ.get('TABLE_RECORD_ID', '').strip()
+          tags = os.environ.get('TAGS', '').strip()
+          
+          print(f"Processing article: {article_title}")
+          print(f"URL: {article_url}")
+          print(f"Category: {ai_category}")
+          print(f"Record ID: {table_record_id}")
+          
+          # Load existing articles.json or create new structure
+          articles_file = Path('_data/articles.json')
+          if articles_file.exists():
+              try:
+                  with open(articles_file, 'r', encoding='utf-8') as f:
+                      data = json.load(f)
+                  print("Loaded existing articles.json")
+              except Exception as e:
+                  print(f"Error loading existing articles.json: {e}")
+                  data = {"articles": []}
+          else:
+              data = {"articles": []}
+              print("Creating new articles.json structure")
+          
+          # Ensure articles list exists
+          if "articles" not in data:
+              data["articles"] = []
+          
+          # Parse article date
+          published_timestamp = None
+          if article_date:
+              try:
+                  # Try parsing ISO format
+                  dt = datetime.fromisoformat(article_date.replace('Z', '+00:00'))
+                  published_timestamp = int(dt.timestamp() * 1000)  # Convert to milliseconds
+              except Exception as e:
+                  print(f"Error parsing date {article_date}: {e}")
+                  published_timestamp = int(datetime.now().timestamp() * 1000)
+          else:
+              published_timestamp = int(datetime.now().timestamp() * 1000)
+          
+          # Create new article object
+          new_article = {
+              "id": table_record_id or f"article_{len(data['articles']) + 1}",
+              "article_title": article_title,
+              "snappy_title": snappy_title,
+              "feed_title": feed_title,
+              "article_url": article_url,
+              "cover_image": cover_image,
+              "article_content": article_content,
+              "ai_category": ai_category,
+              "article_date": article_date,
+              "published_timestamp": published_timestamp,
+              "tags": tags.split(',') if tags else [],
+              "table_record_id": table_record_id,
+              "created_at": datetime.now().isoformat(),
+              "updated_at": datetime.now().isoformat()
+          }
+          
+          # Check if article already exists (by URL or record ID)
+          existing_index = None
+          for i, article in enumerate(data["articles"]):
+              if (article.get("article_url") == article_url and article_url) or \
+                 (article.get("table_record_id") == table_record_id and table_record_id):
+                  existing_index = i
+                  break
+          
+          if existing_index is not None:
+              # Update existing article but preserve original created_at
+              existing_article = data["articles"][existing_index]
+              original_created_at = existing_article.get("created_at")
+              existing_article.update(new_article)
+              existing_article["created_at"] = original_created_at  # Preserve original created_at
+              existing_article["updated_at"] = datetime.now().isoformat()
+              print(f"Updated existing article at index {existing_index}")
+          else:
+              # Add new article
+              data["articles"].append(new_article)
+              print(f"Added new article, total articles: {len(data['articles'])}")
+          
+          # Update last_updated timestamp
+          data["last_updated"] = datetime.now().isoformat()
+          
+          # Write updated data back to file
+          with open(articles_file, 'w', encoding='utf-8') as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+          
+          print(f"Successfully updated {articles_file}")
+          EOF
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            git add _data/articles.json
+            git commit -m "Process article webhook: ${{ steps.extract_data.outputs.article_title }} [skip ci]"
+            git push
+            echo "Pushed updated _data/articles.json"
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Summary
+        run: |
+          echo "Article processing completed:"
+          echo "  Title: ${{ steps.extract_data.outputs.article_title }}"
+          echo "  URL: ${{ steps.extract_data.outputs.article_url }}"
+          echo "  Category: ${{ steps.extract_data.outputs.ai_category }}"
+          echo "  Record ID: ${{ steps.extract_data.outputs.table_record_id }}"
+          echo "  Updated: _data/articles.json"
