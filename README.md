@@ -38,7 +38,7 @@ If you want, I can:
 ## Article Sync Workflow
 
 ### Automated Sync
-The repository includes a GitHub Actions workflow (`sync-articles.yml`) that automatically syncs articles:
+The repository includes a GitHub Actions workflow (`update_data.yml`) that automatically syncs articles:
 - **Schedule**: Runs twice daily at 08:00 UTC and 20:00 UTC
 - **Process**: Fetches new articles from Inoreader → Generates articles.json → Triggers medaffairs.tech update
 
