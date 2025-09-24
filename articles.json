@@ -25,5 +25,32 @@
     "source": null,
     "filepath": "articles/example-article.md",
     "manual_title": "My Custom Article Title"
+  },
+  {
+    "id": "test-news-article.md",
+    "title": "New Clinical Trial Results Show Promise for Cancer Treatment",
+    "url": "https://example.com/cancer-trial-results",
+    "published": "2025-09-24 14:30:00",
+    "source": "Medical Journal Weekly",
+    "filepath": "articles/test-news-article.md",
+    "manual_title": null
+  },
+  {
+    "id": "test-opinion-article.md",
+    "title": "Editorial: The Future of Personalized Medicine",
+    "url": "https://example.com/personalized-medicine-editorial",
+    "published": "2025-09-24 09:15:00",
+    "source": "Medical Opinion Weekly",
+    "filepath": "articles/test-opinion-article.md",
+    "manual_title": null
+  },
+  {
+    "id": "test-tech-article.md",
+    "title": "Advanced Machine Learning Platform Transforms Healthcare Analytics",
+    "url": "https://example.com/ml-healthcare-analytics",
+    "published": "2025-09-24 10:00:00",
+    "source": "Healthcare Technology News",
+    "filepath": "articles/test-tech-article.md",
+    "manual_title": null
   }
 ]

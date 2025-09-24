@@ -1,5 +1,5 @@
 {
-  "last_updated": 1758756847676,
+  "last_updated": 1758757143911,
   "heroes": [
     {
       "manual_title": null,
@@ -18,11 +18,38 @@
       "image": null,
       "source": "FDA News",
       "published_at": 1758747345000
+    },
+    {
+      "manual_title": null,
+      "generated_title": null,
+      "original_title": "New Clinical Trial Results Show Promise for Cancer Treatment",
+      "url": "https://example.com/cancer-trial-results",
+      "image": null,
+      "source": "Medical Journal Weekly",
+      "published_at": 1758724200000
     }
   ],
   "columns": {
     "news": [],
-    "tech": [],
-    "opinion": []
+    "tech": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "Advanced Machine Learning Platform Transforms Healthcare Analytics",
+        "url": "https://example.com/ml-healthcare-analytics",
+        "source": "Healthcare Technology News",
+        "published_at": 1758708000000
+      }
+    ],
+    "opinion": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "Editorial: The Future of Personalized Medicine",
+        "url": "https://example.com/personalized-medicine-editorial",
+        "source": "Medical Opinion Weekly",
+        "published_at": 1758705300000
+      }
+    ]
   }
 }
