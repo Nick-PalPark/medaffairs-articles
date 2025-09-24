@@ -1,22 +1,22 @@
 [
   {
-    "title": "Second Test Article",
-    "snappy_title": "Another Great Article!",
-    "url": "https://example.com/test2",
-    "author": "Another Author",
-    "date": "2025-09-24T14:42:56.604384+00:00",
-    "category": "technology",
-    "cover_image": "https://example.com/image.jpg",
-    "processed_at": "2025-09-24T14:42:56.604397+00:00"
+    "title": "Minimal Article Example",
+    "snappy_title": "",
+    "url": "https://example.com/minimal-example",
+    "author": "Unknown",
+    "date": "2025-09-24T14:45:01.238641+00:00",
+    "category": "general",
+    "cover_image": "",
+    "processed_at": "2025-09-24T14:45:01.238652+00:00"
   },
   {
-    "title": "Test Article",
-    "snappy_title": "Amazing Test!",
-    "url": "https://example.com/test",
-    "author": "Test Author",
-    "date": "2025-09-24T14:42:32.140460+00:00",
-    "category": "test",
-    "cover_image": "",
-    "processed_at": "2025-09-24T14:42:32.140471+00:00"
+    "title": "Complete Medical Research Study",
+    "snappy_title": "Breakthrough Study Results!",
+    "url": "https://example.com/complete-study",
+    "author": "Dr. Research Team",
+    "date": "2024-01-20T15:00:00Z",
+    "category": "research",
+    "cover_image": "https://example.com/study-cover.jpg",
+    "processed_at": "2025-09-24T14:45:01.211533+00:00"
   }
 ]

@@ -35,10 +35,18 @@ If you want, I can:
 - Update the medaffairs.tech repo directly with these files (I can open a PR) so you can review and merge.
 - Or I can walk you step-by-step through adding secrets and enabling the repository_dispatch trigger from medaffairs-data.
 
-## Article Sync Workflow
+## Article Processing Workflows
 
-### Automated Sync
-The repository includes a GitHub Actions workflow (`sync-articles.yml`) that automatically syncs articles:
+### 1. Webhook-Based Article Processing (NEW)
+The repository now includes a webhook-based workflow (`process-article.yml`) for real-time article processing:
+- **Trigger**: Repository dispatch events with type `new-article`
+- **Manual Testing**: Via GitHub Actions UI with test JSON data
+- **Output**: Maintains a single JSON file at `_data/articles.json`
+- **Features**: Duplicate prevention, data validation, automatic timestamps
+- **Documentation**: See [WEBHOOK_USAGE.md](WEBHOOK_USAGE.md) for detailed usage instructions
+
+### 2. Automated Sync (Legacy)
+The repository also includes a GitHub Actions workflow (`sync-articles.yml`) that automatically syncs articles:
 - **Schedule**: Runs twice daily at 08:00 UTC and 20:00 UTC
 - **Process**: Fetches new articles from Inoreader → Generates articles.json → Triggers medaffairs.tech update
 
