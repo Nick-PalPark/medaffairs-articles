@@ -46,3 +46,5 @@ Thumbs.db
 venv/
 env/
 ENV/
+# Temporary test files
+test_*.json
