@@ -1,57 +1,16 @@
 {
-  "last_updated": 1700000000000,
+  "last_updated": 1758746050170,
   "heroes": [
     {
-      "manual_title": "AI Breakthrough in Medical Research",
-      "generated_title": "AI Revolutionizes Medical Diagnosis!",
-      "original_title": "Original Medical Research Article",
-      "url": "https://example.com/article1",
-      "image": "https://via.placeholder.com/180x150?text=AI",
-      "source": "Medical Journal",
-      "published_at": 1699000000000
-    },
-    {
-      "generated_title": "Global Health Initiative Success",
-      "original_title": "Health Initiative Update",
-      "url": "https://example.com/article2", 
-      "image": "https://via.placeholder.com/180x150?text=Health",
-      "source": "Health News",
-      "published_at": 1699000001000
+      "title": "My Custom Article Title",
+      "url": null,
+      "source": null,
+      "published": null
     }
   ],
   "columns": {
-    "news": [
-      {
-        "manual_title": "FDA Approves New Drug",
-        "url": "https://example.com/news1",
-        "source": "FDA News",
-        "published_at": 1699000002000
-      },
-      {
-        "generated_title": "Pharma Merger Announced",
-        "original_title": "Large Pharmaceutical Companies Announce Merger",
-        "url": "https://example.com/news2",
-        "source": "Business News",
-        "published_at": 1699000003000
-      }
-    ],
-    "tech": [
-      {
-        "original_title": "New Medical Device Technology",
-        "url": "https://example.com/tech1",
-        "source": "Tech Review",
-        "published_at": 1699000004000
-      }
-    ],
-    "opinion": [
-      {
-        "manual_title": "The Future of Telemedicine",
-        "generated_title": "Telemedicine: Game Changer or Hype?",
-        "original_title": "Analysis of Telemedicine Trends",
-        "url": "https://example.com/opinion1",
-        "source": "Medical Opinion",
-        "published_at": 1699000005000
-      }
-    ]
+    "news": [],
+    "tech": [],
+    "opinion": []
   }
 }

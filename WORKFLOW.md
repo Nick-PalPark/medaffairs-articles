@@ -2,40 +2,53 @@
 
 # Article Workflow Documentation
 
-## New Workflow: sync-articles.yml
+## Streamlined Workflow: update_data.yml
 
-This repository includes a GitHub Actions workflow that automates the article capture and JSON generation process with enhanced scheduling and manual trigger capabilities.
+This repository features a single, comprehensive GitHub Actions workflow that handles the complete article processing pipeline from RSS capture to website publication.
 
 ### What it does:
-1. **Runs capture_articles.py** - Fetches new articles from Inoreader and saves them as markdown files in `articles/`
-2. **Generates articles.json** - Uses `scripts/generate_articles_json.py` to create a normalized JSON file from all markdown files
-3. **Preserves manual titles** - Any `manual_title` values in the existing articles.json are preserved when rebuilding
-4. **Commits changes** - Automatically commits updated articles.json and any new article files
-5. **Triggers medaffairs.tech** - Sends a repository_dispatch event to update the public website
-6. **Rate limiting** - Prevents excessive manual runs (1 per 30 minutes unless forced)
-7. **Enhanced logging** - Detailed logging with grouped output for better visibility
+1. **Captures articles** - Runs `capture_articles.py` to fetch new articles from Inoreader and save as markdown files in `articles/`
+2. **Generates raw JSON** - Uses `scripts/generate_articles_json.py` to create `articles.json` from all markdown files
+3. **Transforms for website** - Uses `scripts/transform_to_site_format.py` to convert raw data to structured format in `data/articles.json`
+4. **Preserves manual titles** - Any `manual_title` values in existing articles.json are preserved when rebuilding
+5. **Commits changes** - Automatically commits updated markdown files and both JSON formats
+6. **Triggers medaffairs.tech** - Sends repository_dispatch event to update the public website
 
 ### Schedule:
-- Runs twice daily at 08:00 UTC and 20:00 UTC
-- Can be triggered manually via workflow_dispatch with options:
-  - Sync type selection (full, articles_only, json_only)
-  - Rate limit override option
+- Runs daily at 08:00 UTC
+- Can be triggered manually via workflow_dispatch
 
 ### Requirements:
-- `MEDAFFAIRS_TECH_PAT` secret must be configured with a Personal Access Token that has repository dispatch permissions for the medaffairs.tech repo
+- `INOREADER_APP_ID`, `INOREADER_APP_KEY`, `INOREADER_USERNAME`, `INOREADER_PASSWORD` secrets for RSS access
+- `MEDAFFAIRS_TECH_PAT` secret with repository dispatch permissions for medaffairs.tech repo
 
 ### Scripts:
-- `scripts/generate_articles_json.py` - Standalone script that builds articles.json from markdown files
+- `capture_articles.py` - Main capture script that fetches articles from Inoreader RSS feeds
+- `scripts/generate_articles_json.py` - Converts markdown files to raw JSON array format
   - Extracts titles from `# Title` headings
   - Parses metadata like `**URL:**`, `**Published:**`, `**Source:**`
   - Preserves existing `manual_title` values by matching on URL or filename
   - Outputs normalized JSON array format
+- `scripts/transform_to_site_format.py` - Transforms raw JSON to website format
+  - Creates structured format with `heroes` and categorized `columns`
+  - Selects top articles as featured heroes
+  - Categorizes articles into news/tech/opinion based on keywords
+  - Adds timestamp and proper formatting for the website
 
 ### Manual Usage:
 ```bash
-# Generate articles.json from markdown files (preserving manual titles)
+# Complete pipeline (same as workflow)
+python capture_articles.py
 python scripts/generate_articles_json.py --articles-dir articles --output articles.json
+python scripts/transform_to_site_format.py --input articles.json --output data/articles.json
 
-# Generate with custom paths
+# Individual steps with custom paths
 python scripts/generate_articles_json.py --articles-dir /path/to/articles --output /path/to/output.json --existing /path/to/existing.json
+python scripts/transform_to_site_format.py --input raw-articles.json --output site-data.json
 ```
+
+### Data Flow:
+1. **RSS Feeds** → `capture_articles.py` → **Markdown files** in `articles/`
+2. **Markdown files** → `generate_articles_json.py` → **Raw JSON** (`articles.json`)  
+3. **Raw JSON** → `transform_to_site_format.py` → **Website JSON** (`data/articles.json`)
+4. **Website JSON** → repository_dispatch → **medaffairs.tech website update**

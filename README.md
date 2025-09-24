@@ -1,66 +1,66 @@
-# medaffairs.tech — Drudge-inspired front-end + private-data sync
+# medaffairs.tech — Article Capture and Processing
 
-This repo contains the static front-end for medaffairs.tech and a GitHub Actions workflow that syncs the private medaffairs-data/articles.json into this repo at publish-time.
+This repository captures medical and healthcare articles from RSS feeds and processes them for the medaffairs.tech website. It features a streamlined workflow that automatically fetches, processes, and publishes articles.
 
-Quick start / setup checklist
-1. medaffairs-data repo:
-   - Keep medaffairs-data private if you prefer (recommended by you).
-   - Ensure medaffairs-data has the fetch workflow that updates articles.json and triggers medaffairs.tech by calling repository_dispatch with event_type `medaffairs-data-updated`. Example:
-     - POST to https://api.github.com/repos/Nick-PalPark/medaffairs.tech/dispatches with body {"event_type":"medaffairs-data-updated"} using a token with repo:dispatch permissions.
+## Automated Workflow
 
-2. Create a PAT for this repo to read medaffairs-data:
-   - Create a Personal Access Token (classic) with `repo` scope (or finer-grained token with repo:contents access).
-   - In medaffairs.tech repository settings -> Secrets -> Actions, create the secret `MEDAFFAIRS_DATA_TOKEN` with that PAT.
+The repository includes a single, streamlined GitHub Actions workflow (`update_data.yml`) that handles the complete pipeline:
 
-3. GitHub Actions:
-   - The workflow `.github/workflows/sync_data.yml` will:
-     - Run on `repository_dispatch` event named `medaffairs-data-updated` (or manually).
-     - Check out medaffairs-data using the PAT and copy `articles.json` into `data/articles.json`.
-     - Commit and push the updated file if it changed.
-   - After the commit, GitHub Pages (if configured) will publish the updated site.
+### What it does:
+1. **Captures articles** - Fetches new articles from Inoreader RSS feeds and saves them as markdown files in `articles/`
+2. **Generates raw JSON** - Creates `articles.json` from all markdown files with metadata
+3. **Transforms for website** - Converts to structured format with heroes and categorized columns in `data/articles.json`
+4. **Commits changes** - Automatically commits all updated files
+5. **Triggers website update** - Sends repository_dispatch to medaffairs.tech for immediate publishing
 
-4. GitHub Pages:
-   - Configure GitHub Pages to serve from the branch/folder you want (e.g., main branch / root or `docs/`).
-   - If you serve from main root, the site is ready. If you serve from `docs/`, move the static files into `docs/` or adjust the workflow to place files there.
-   - Add a `CNAME` file with `medaffairs.tech` if you haven't already and configure DNS as described in your repo settings (A records or CNAME depending on setup).
+### Schedule:
+- Runs daily at 08:00 UTC
+- Can be triggered manually via workflow_dispatch
 
-Notes about titles and editing
-- The site will display:
-  1) manual_title (if present)
-  2) generated_title (AI snappy headline)
-  3) original_title (feed title)
-- Keep using the admin/editor approach we discussed earlier (or edit articles.json in medaffairs-data via the GitHub UI) to set `manual_title`. The medaffairs-data fetch workflow will preserve manual_title when it updates articles.json.
+### Requirements:
+- `INOREADER_APP_ID`, `INOREADER_APP_KEY`, `INOREADER_USERNAME`, `INOREADER_PASSWORD` secrets for RSS access
+- `MEDAFFAIRS_TECH_PAT` secret with repository dispatch permissions for the medaffairs.tech repo
 
-If you want, I can:
-- Update the medaffairs.tech repo directly with these files (I can open a PR) so you can review and merge.
-- Or I can walk you step-by-step through adding secrets and enabling the repository_dispatch trigger from medaffairs-data.
+## Article Processing
 
-## Article Sync Workflow
+### Raw Data Format (articles.json)
+The workflow generates a raw JSON array with article metadata:
+```json
+[
+  {
+    "id": "2025-01-15_Article-Title.md",
+    "title": "Article Title", 
+    "url": "https://example.com/article",
+    "published": "2025-01-15 12:00:00",
+    "source": "Medical Journal",
+    "filepath": "articles/2025-01-15_Article-Title.md",
+    "manual_title": "Custom Title (if set)"
+  }
+]
+```
 
-### Automated Sync
-The repository includes a GitHub Actions workflow (`sync-articles.yml`) that automatically syncs articles:
-- **Schedule**: Runs twice daily at 08:00 UTC and 20:00 UTC
-- **Process**: Fetches new articles from Inoreader → Generates articles.json → Triggers medaffairs.tech update
+### Website Format (data/articles.json)
+The raw data is transformed to the structured format expected by medaffairs.tech:
+```json
+{
+  "last_updated": 1736956800000,
+  "heroes": [
+    {"title": "Featured Article", "url": "...", "image": "..."}
+  ],
+  "columns": {
+    "news": [...],
+    "tech": [...], 
+    "opinion": [...]
+  }
+}
+```
 
-### Manual Sync
-You can manually trigger article synchronization from the GitHub Actions tab:
+## Manual Title Editing
+- Edit `articles.json` directly to add `manual_title` values
+- Manual titles take precedence over auto-generated titles
+- Changes are preserved when the workflow regenerates the JSON
 
-1. Go to **Actions** → **Sync Articles with Rate Limiting**
-2. Click **Run workflow**
-3. Configure options:
-   - **Sync Type**:
-     - `full` (default): Complete sync - fetch articles AND generate JSON
-     - `articles_only`: Only fetch new articles, skip JSON generation
-     - `json_only`: Only regenerate JSON from existing articles
-   - **Force Sync**: Override rate limiting (normally 1 manual run per 30 minutes)
-
-### Rate Limiting
-- Manual triggers are rate-limited to prevent excessive API usage
-- Maximum 1 manual run per 30 minutes (unless force sync is enabled)
-- Scheduled runs are never rate-limited
-- Rate limiting only applies to manual `workflow_dispatch` events
-
-DNS / Pages help
-- If you'd like, tell me your DNS host and I'll give exact DNS records to point medaffairs.tech to GitHub Pages.
-
-## Setup complete
+## Scripts
+- `capture_articles.py` - Main article capture script
+- `scripts/generate_articles_json.py` - Converts markdown files to raw JSON
+- `scripts/transform_to_site_format.py` - Transforms raw JSON to website format
