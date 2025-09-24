@@ -44,3 +44,9 @@ python scripts/transform_to_site_format.py --input articles.json --output data/a
 python scripts/generate_articles_json.py --articles-dir /path/to/articles --output /path/to/output.json --existing /path/to/existing.json
 python scripts/transform_to_site_format.py --input raw-articles.json --output site-data.json
 ```
+
+### Data Flow:
+1. **Zapier table** → `capture_articles.py` → **Markdown files** in `articles/`
+2. **Markdown files** → `generate_articles_json.py` → **Raw JSON** (`articles.json`)  
+3. **Raw JSON** → `transform_to_site_format.py` → **Website JSON** (`data/articles.json`)
+4. **Website JSON** → repository_dispatch → **medaffairs.tech website update**

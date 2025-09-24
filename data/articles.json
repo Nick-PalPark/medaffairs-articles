@@ -1,23 +1,11 @@
 {
-  "last_updated": 1758754545975,
+  "last_updated": 1758746050170,
   "heroes": [
     {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "Medical AI Breakthrough in Diagnostics",
-      "url": "https://example.com/medical-ai-breakthrough",
-      "image": null,
-      "source": "Medical Technology News",
-      "published_at": 1758754545000
-    },
-    {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "FDA Approves Revolutionary Gene Therapy",
-      "url": "https://example.com/fda-gene-therapy",
-      "image": null,
-      "source": "FDA News",
-      "published_at": 1758747345000
+      "title": "My Custom Article Title",
+      "url": null,
+      "source": null,
+      "published": null
     }
   ],
   "columns": {

@@ -20,7 +20,7 @@ pip install -r requirements.txt
 # Check if config exists
 if [ ! -f "config.py" ]; then
     echo "ERROR: config.py not found!"
-    echo "Please copy config_template.py to config.py and configure your Inoreader credentials."
+    echo "Please copy config_template.py to config.py and configure your Zapier credentials."
     exit 1
 fi
 

@@ -1,4 +1,4 @@
-name: Capture articles from Zapier table and update website
+name: Capture articles and update website
 
 on:
   workflow_dispatch:
