@@ -1,43 +1,36 @@
 name: Sync Articles with Rate Limiting
 
+permissions:
+  contents: write
+  actions: read
+
 on:
-  schedule:
-    - cron: '*/30 * * * *'
+  repository_dispatch:
+    types: [new_article]
   workflow_dispatch:
     inputs:
       force_sync:
         description: 'Force sync (bypass rate limiting)'
         required: false
-        default: 'false'
         type: boolean
+        default: false
+  schedule:
+    - cron: '0 */12 * * *'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout medaffairs-articles
-        uses: actions/checkout@v3
-        with:
-          repository: Nick-PalPark/medaffairs-articles
-          path: source-repo
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout medaffairs.tech
-        uses: actions/checkout@v3
-        with:
-          repository: Nick-PalPark/medaffairs.tech
-          path: destination-repo
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
+      - uses: actions/checkout@v3
+        
       - name: Check rate limiting
         id: rate_limit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           echo "::group::Rate Limiting Check"
           
           # Skip rate limiting for scheduled runs or if force_sync is true
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.force_sync }}" = "true" ]; then
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ inputs.force_sync }}" == "true" ]]; then
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "Scheduled run or force sync - bypassing rate limit"
             echo "::endgroup::"
@@ -48,22 +41,12 @@ jobs:
           CUTOFF_TIME=$(date -d '30 minutes ago' -u +'%Y-%m-%dT%H:%M:%SZ')
           echo "Checking for runs after: $CUTOFF_TIME"
           
-          # Get recent workflow runs for this workflow  
-          # Try GitHub CLI first, fallback to API
-          if command -v gh >/dev/null 2>&1; then
-            RECENT_RUNS=$(gh run list \
-              --workflow=sync-articles.yml \
-              --limit=10 \
-              --json createdAt,event,conclusion \
-              --jq "[.[] | {created_at: .createdAt, event: .event, conclusion: .conclusion} | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
-          else
-            # Fallback to direct API call
-            RECENT_RUNS=$(curl -s \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=10" | \
-              jq "[.workflow_runs[] | {created_at: .created_at, event: .event, conclusion: .conclusion} | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\" and .name == \"Sync Articles with Rate Limiting\")]")
-          fi
+          # Get recent workflow runs using GH_PAT instead of GITHUB_TOKEN
+          RECENT_RUNS=$(curl -s \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=10" | \
+            jq "[.workflow_runs[] | select(.created_at > \"$CUTOFF_TIME\" and .event == \"workflow_dispatch\" and .conclusion == \"success\")]")
           
           RECENT_COUNT=$(echo "$RECENT_RUNS" | jq length)
           echo "Recent manual runs in last 30 minutes: $RECENT_COUNT"
@@ -78,35 +61,3 @@ jobs:
           fi
           
           echo "::endgroup::"
-
-      - name: Sync if allowed
-        if: steps.rate_limit.outputs.should_run == 'true'
-        run: |
-          echo "Syncing articles..."
-          # Copy new articles from source to destination
-          cd source-repo
-          
-          # Assuming articles are in a specific directory, e.g., 'articles' or 'content'
-          # Adjust these paths based on your actual repository structure
-          if [ -d "articles" ]; then
-            echo "Found articles directory"
-            cp -r articles/* ../destination-repo/content/articles/
-          fi
-          
-          # Commit and push changes if any
-          cd ../destination-repo
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          
-          if git status --porcelain | grep .; then
-            echo "Changes detected, committing..."
-            git add .
-            git commit -m "Sync articles from medaffairs-articles [skip ci]"
-            git push
-          else
-            echo "No changes to sync"
-          fi
-
-permissions:
-  contents: write
-  actions: read
