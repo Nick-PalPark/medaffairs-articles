@@ -80,19 +80,37 @@ jobs:
 
       - name: Commit and push changes if any
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          # Configure Git with actions bot user
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Add any changes (new markdown files in articles/, updated articles.json)
-          git add articles/ articles.json
+          # Detect any changed markdown files under the articles/ directory
+          git add articles/
           
-          # Commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
+          # Check for any changes in markdown files specifically
+          CHANGED_MD_FILES=$(git diff --staged --name-only --diff-filter=AM articles/ | grep '\.md$' || true)
+          
+          if [ -n "$CHANGED_MD_FILES" ]; then
+            echo "Changed markdown files detected:"
+            echo "$CHANGED_MD_FILES"
+            
+            # Also add articles.json if it was generated/updated
+            git add articles.json
+            
+            # Commit the changes
             git commit -m "Update articles: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
             git push
-            echo "Pushed article updates"
+            echo "Pushed article updates including markdown files"
+          else
+            # Still check for articles.json changes even if no MD files changed
+            git add articles.json
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "Update articles.json: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+              git push
+              echo "Pushed articles.json update"
+            fi
           fi
 
       - name: Trigger medaffairs.tech repository dispatch

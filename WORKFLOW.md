@@ -2,7 +2,7 @@
 
 # Article Workflow Documentation
 
-## New Workflow: sync-articles.yml
+## New Workflow: update_data.yml
 
 This repository includes a GitHub Actions workflow that automates the article capture and JSON generation process with enhanced scheduling and manual trigger capabilities.
 
