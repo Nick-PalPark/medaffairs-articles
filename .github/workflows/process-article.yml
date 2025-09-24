@@ -1,0 +1,200 @@
+name: Process New Article from Zapier Webhook
+
+on:
+  repository_dispatch:
+    types: [new_article]
+
+permissions:
+  contents: write    # allow commit back to this repo
+
+jobs:
+  process_article:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Debug webhook payload
+        run: |
+          echo "::group::Webhook Payload Debug"
+          echo "Event type: ${{ github.event.action }}"
+          echo "Client payload:"
+          echo '${{ toJSON(github.event.client_payload) }}'
+          echo "::endgroup::"
+
+      - name: Extract and validate article data
+        id: extract_data
+        run: |
+          echo "::group::Extract Article Data"
+          
+          # Use Python to safely extract and validate data from the JSON payload
+          python3 -c "
+          import json
+          import sys
+          import re
+          import os
+          from datetime import datetime
+          
+          # Load the client payload
+          payload = json.loads('''${{ toJSON(github.event.client_payload) }}''')
+          
+          # Extract fields with validation
+          title = payload.get('title', '').strip()
+          url = payload.get('url', '').strip()
+          source = payload.get('source', 'Unknown').strip()
+          published = payload.get('published', '').strip()
+          content = payload.get('content', '').strip()
+          category = payload.get('category', 'general').strip()
+          
+          # Validate required fields
+          if not title:
+              print('Error: Missing required field \"title\"')
+              sys.exit(1)
+          
+          if not url:
+              print('Error: Missing required field \"url\"')
+              sys.exit(1)
+          
+          # Set defaults for optional fields
+          if not source:
+              source = 'Unknown'
+          
+          if not published:
+              published = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+          
+          if not category:
+              category = 'general'
+          
+          # Generate a safe filename from title and timestamp
+          timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+          # Clean title for filename - remove/replace unsafe characters
+          safe_title = re.sub(r'[^a-zA-Z0-9\s-]', '', title)
+          safe_title = re.sub(r'\s+', '_', safe_title.strip())
+          safe_title = safe_title[:50]  # Limit length
+          filename = f'{timestamp}_{safe_title}.json'
+          
+          # Output to GitHub Actions environment
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'title={title}\n')
+              f.write(f'url={url}\n')
+              f.write(f'source={source}\n')
+              f.write(f'published={published}\n')
+              f.write(f'content={content}\n')
+              f.write(f'category={category}\n')
+              f.write(f'filename={filename}\n')
+          
+          print('Extracted data:')
+          print(f'  Title: {title}')
+          print(f'  URL: {url}')
+          print(f'  Source: {source}')
+          print(f'  Published: {published}')
+          print(f'  Category: {category}')
+          print(f'  Filename: {filename}')
+          "
+          
+          echo "::endgroup::"
+
+      - name: Create JSON file for article
+        run: |
+          echo "::group::Create Article JSON File"
+          
+          # Ensure the _data/articles directory exists
+          mkdir -p _data/articles
+          
+          # Use Python to create properly escaped JSON file
+          python3 -c "
+          import json
+          import sys
+          from datetime import datetime
+          
+          # Collect data from environment variables
+          article_data = {
+              'id': '${{ steps.extract_data.outputs.filename }}',
+              'title': '''${{ steps.extract_data.outputs.title }}''',
+              'url': '''${{ steps.extract_data.outputs.url }}''',
+              'source': '''${{ steps.extract_data.outputs.source }}''',
+              'published': '''${{ steps.extract_data.outputs.published }}''',
+              'category': '''${{ steps.extract_data.outputs.category }}''',
+              'content': '''${{ steps.extract_data.outputs.content }}''',
+              'created_at': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+              'processed_by': 'zapier-webhook'
+          }
+          
+          # Write JSON file with proper formatting
+          filepath = '_data/articles/${{ steps.extract_data.outputs.filename }}'
+          try:
+              with open(filepath, 'w', encoding='utf-8') as f:
+                  json.dump(article_data, f, indent=2, ensure_ascii=False)
+              print(f'Successfully created JSON file: {filepath}')
+          except Exception as e:
+              print(f'Error creating JSON file: {e}')
+              sys.exit(1)
+          "
+          
+          echo "Created file: _data/articles/${{ steps.extract_data.outputs.filename }}"
+          echo "File contents:"
+          cat "_data/articles/${{ steps.extract_data.outputs.filename }}"
+          echo "::endgroup::"
+
+      - name: Validate JSON file
+        run: |
+          echo "::group::Validate JSON File"
+          python -c "
+          import json
+          import sys
+          
+          try:
+              with open('_data/articles/${{ steps.extract_data.outputs.filename }}', 'r') as f:
+                  data = json.load(f)
+              print('JSON file is valid')
+              print(f'Article ID: {data.get(\"id\")}')
+              print(f'Title: {data.get(\"title\")}')
+              print(f'URL: {data.get(\"url\")}')
+          except json.JSONDecodeError as e:
+              print(f'JSON validation failed: {e}')
+              sys.exit(1)
+          except Exception as e:
+              print(f'Error validating JSON: {e}')
+              sys.exit(1)
+          "
+          echo "::endgroup::"
+
+      - name: Commit and push changes
+        run: |
+          echo "::group::Commit and Push Changes"
+          
+          # Configure git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add the new file
+          git add "_data/articles/${{ steps.extract_data.outputs.filename }}"
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            # Commit the changes
+            git commit -m "Add new article: ${{ steps.extract_data.outputs.title }} (${{ steps.extract_data.outputs.filename }})"
+            git push
+            echo "Successfully committed and pushed new article"
+          fi
+          
+          echo "::endgroup::"
+
+      - name: Summary
+        run: |
+          echo "::group::Processing Summary"
+          echo "✅ Successfully processed article from Zapier webhook"
+          echo "📄 Title: ${{ steps.extract_data.outputs.title }}"
+          echo "🔗 URL: ${{ steps.extract_data.outputs.url }}"
+          echo "📁 File: _data/articles/${{ steps.extract_data.outputs.filename }}"
+          echo "📅 Processed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "::endgroup::"
