@@ -32,10 +32,18 @@ class ZapierTableClient:
         self.session = requests.Session()
         
         # Set up authentication header if API key is provided
-        if self.api_key and self.api_key != "your_zapier_api_key_here":
+        if self.api_key and self.api_key != "your_zapier_api_key_here" and self.api_key != "test_key_placeholder":
             self.session.headers.update({
                 'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            })
+            print("✓ API key configured for authentication")
+        else:
+            print("⚠ No valid API key found - requests will be unauthenticated")
+            self.session.headers.update({
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             })
     
     def get_articles(self, limit=None):
@@ -46,11 +54,15 @@ class ZapierTableClient:
         print(f"Attempting to fetch articles from Zapier table: {self.table_id}")
         
         # Try multiple endpoint patterns that Zapier might use
+        # Based on Zapier Tables API documentation
         endpoints_to_try = [
-            f"{self.base_url}/{self.table_id}/records",
-            f"{self.base_url}/{self.table_id}/rows", 
             f"https://tables.zapier.com/api/v1/tables/{self.table_id}/records",
-            f"https://api.zapier.com/v1/tables/{self.table_id}/records"
+            f"https://tables.zapier.com/api/v1/tables/{self.table_id}/rows",
+            f"https://api.zapier.com/v1/tables/{self.table_id}/records",
+            f"https://storage.zapier.com/tables/{self.table_id}/records",
+            # Legacy format fallbacks
+            f"{self.base_url}/{self.table_id}/records",
+            f"{self.base_url}/{self.table_id}/rows"
         ]
         
         params = {
@@ -73,14 +85,26 @@ class ZapierTableClient:
         for endpoint in endpoints_to_try:
             try:
                 print(f"Trying endpoint: {endpoint}")
-                response = self.session.get(endpoint, params=params)
+                response = self.session.get(endpoint, params=params, timeout=30)
                 
+                print(f"  Response status: {response.status_code}")
                 if response.status_code == 200:
                     data = response.json()
                     articles = self._extract_articles_from_response(data)
                     if articles:
                         print(f"Successfully fetched {len(articles)} articles")
                         return articles
+                    else:
+                        print(f"  No articles found in response")
+                elif response.status_code == 401:
+                    print(f"  ✗ Authentication failed - check API key")
+                elif response.status_code == 403:
+                    print(f"  ✗ Access forbidden - check API key permissions")
+                elif response.status_code == 404:
+                    print(f"  ✗ Table not found - check table ID")
+                else:
+                    print(f"  ✗ Unexpected status code: {response.status_code}")
+                    print(f"  Response: {response.text[:200]}...")
                         
             except Exception as e:
                 print(f"Endpoint {endpoint} failed: {e}")

@@ -32,12 +32,12 @@ jobs:
           ZAPIER_TABLE_ID: ${{ secrets.ZAPIER_TABLE_ID }}
           ZAPIER_API_KEY: ${{ secrets.ZAPIER_API_KEY }}
         run: |
-          cat > config.py <<'EOL'
+          cat > config.py <<EOL
           # Auto-generated config.py for capture_articles.py - DO NOT COMMIT
           # Populated from repository secrets at runtime by Actions
 
-          ZAPIER_TABLE_ID = '$ZAPIER_TABLE_ID'
-          ZAPIER_API_KEY = '$ZAPIER_API_KEY'
+          ZAPIER_TABLE_ID = "${ZAPIER_TABLE_ID}"
+          ZAPIER_API_KEY = "${ZAPIER_API_KEY}"
 
           ZAPIER_API_BASE = "https://tables.zapier.com/api/v1/tables"
 
