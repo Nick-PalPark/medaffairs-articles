@@ -1,6 +1,15 @@
 {
-  "last_updated": 1758758554755,
+  "last_updated": 1758771057681,
   "heroes": [
+    {
+      "manual_title": null,
+      "generated_title": null,
+      "original_title": "FDA Approves Revolutionary Gene Therapy",
+      "url": "https://example.com/fda-gene-therapy",
+      "image": null,
+      "source": "FDA News",
+      "published_at": 1758763846000
+    },
     {
       "manual_title": null,
       "generated_title": null,
@@ -18,15 +27,6 @@
       "image": null,
       "source": "Medical Technology News",
       "published_at": 1758754545000
-    },
-    {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "FDA Approves Revolutionary Gene Therapy",
-      "url": "https://example.com/fda-gene-therapy",
-      "image": null,
-      "source": "FDA News",
-      "published_at": 1758747345000
     }
   ],
   "columns": {
@@ -41,6 +41,14 @@
       }
     ],
     "tech": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "FDA Approves Revolutionary Gene Therapy",
+        "url": "https://example.com/fda-gene-therapy",
+        "source": "FDA News",
+        "published_at": 1758747345000
+      },
       {
         "manual_title": null,
         "generated_title": null,
