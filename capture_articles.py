@@ -58,6 +58,17 @@ class ZapierTableClient:
             'sort': '-created_at'  # Get newest articles first
         }
         
+        # Add tag filtering if configured
+        if hasattr(config, 'REQUIRED_TAGS') and config.REQUIRED_TAGS:
+            # Try different parameter names that Zapier might use for tag filtering
+            # This will depend on the actual Zapier table structure
+            print(f"Filtering for tags: {config.REQUIRED_TAGS}")
+            # Add common tag filter parameters - adjust based on actual API
+            params['tags'] = ','.join(config.REQUIRED_TAGS)
+            # Alternative parameter names to try:
+            # params['filter[tags]'] = ','.join(config.REQUIRED_TAGS)
+            # params['tag'] = ','.join(config.REQUIRED_TAGS)
+        
         # Try each endpoint until one works
         for endpoint in endpoints_to_try:
             try:
@@ -82,16 +93,35 @@ class ZapierTableClient:
     def _extract_articles_from_response(self, data):
         """Extract articles from various possible response formats"""
         # Handle different possible response structures
+        articles = []
         if isinstance(data, list):
-            return data
+            articles = data
         elif 'records' in data:
-            return data['records']
+            articles = data['records']
         elif 'data' in data:
-            return data['data']
+            articles = data['data']
         elif 'rows' in data:
-            return data['rows']
+            articles = data['rows']
         else:
             return []
+        
+        # Apply client-side tag filtering if needed (fallback if API doesn't support it)
+        if hasattr(config, 'REQUIRED_TAGS') and config.REQUIRED_TAGS:
+            filtered_articles = []
+            for article in articles:
+                article_tags = article.get('tags', [])
+                # Handle both string and list formats for tags
+                if isinstance(article_tags, str):
+                    article_tags = [tag.strip() for tag in article_tags.split(',')]
+                
+                # Check if article has any of the required tags
+                if any(tag in article_tags for tag in config.REQUIRED_TAGS):
+                    filtered_articles.append(article)
+            
+            print(f"Filtered {len(articles)} articles down to {len(filtered_articles)} with required tags")
+            return filtered_articles
+        
+        return articles
     
     def _get_fallback_articles(self):
         """Provide fallback sample articles when API is not accessible"""

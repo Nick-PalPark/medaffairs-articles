@@ -44,6 +44,7 @@ jobs:
           ARTICLES_DIR = "articles"
           MAX_ARTICLES = 50
           DAYS_BACK = 7
+          REQUIRED_TAGS = []  # Add tags here if you want to filter: ["medaffairs", "healthcare"]
           EOL
 
       - name: Debug - verify secrets are available and config.py present
