@@ -13,3 +13,7 @@ ZAPIER_API_BASE = "https://tables.zapier.com/api/v1/tables"
 ARTICLES_DIR = "articles"
 MAX_ARTICLES = 50  # Maximum number of articles to fetch per run
 DAYS_BACK = 7      # How many days back to look for articles
+
+# Filtering settings
+REQUIRED_TAGS = []  # List of tags to filter for (empty = no tag filtering)
+# Example: REQUIRED_TAGS = ["medaffairs", "healthcare"] to only fetch articles with these tags

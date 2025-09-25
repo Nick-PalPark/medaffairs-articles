@@ -21,6 +21,8 @@ The repository includes a single, streamlined GitHub Actions workflow (`update_d
 - `ZAPIER_TABLE_ID`, `ZAPIER_API_KEY` secrets for table access
 - `MEDAFFAIRS_TECH_PAT` secret with repository dispatch permissions for the medaffairs.tech repo
 
+**📖 For detailed setup instructions, see [SETUP_ZAPIER_ACCESS.md](SETUP_ZAPIER_ACCESS.md)**
+
 ## Article Processing
 
 ### Raw Data Format (articles.json)
@@ -64,3 +66,4 @@ The raw data is transformed to the structured format expected by medaffairs.tech
 - `capture_articles.py` - Main article capture script
 - `scripts/generate_articles_json.py` - Converts markdown files to raw JSON
 - `scripts/transform_to_site_format.py` - Transforms raw JSON to website format
+- `test_zapier_connection.py` - Test script to validate Zapier API setup

@@ -1,6 +1,15 @@
 {
-  "last_updated": 1758757143911,
+  "last_updated": 1758758554755,
   "heroes": [
+    {
+      "manual_title": null,
+      "generated_title": null,
+      "original_title": "Medical AI Breakthrough in Diagnostics",
+      "url": "https://example.com/medical-ai-breakthrough",
+      "image": null,
+      "source": "Medical Technology News",
+      "published_at": 1758758454000
+    },
     {
       "manual_title": null,
       "generated_title": null,
@@ -18,19 +27,19 @@
       "image": null,
       "source": "FDA News",
       "published_at": 1758747345000
-    },
-    {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "New Clinical Trial Results Show Promise for Cancer Treatment",
-      "url": "https://example.com/cancer-trial-results",
-      "image": null,
-      "source": "Medical Journal Weekly",
-      "published_at": 1758724200000
     }
   ],
   "columns": {
-    "news": [],
+    "news": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "New Clinical Trial Results Show Promise for Cancer Treatment",
+        "url": "https://example.com/cancer-trial-results",
+        "source": "Medical Journal Weekly",
+        "published_at": 1758724200000
+      }
+    ],
     "tech": [
       {
         "manual_title": null,
