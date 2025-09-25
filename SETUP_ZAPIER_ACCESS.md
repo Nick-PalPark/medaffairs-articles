@@ -95,33 +95,46 @@ The workflow is configured to run daily at 08:00 UTC. You can:
    - Check if the Zapier table URL/ID is correct
    - Try accessing the API endpoint manually with curl/Postman
 
-3. **No articles fetched**
+3. **Config shows template variables like `$ZAPIER_TABLE_ID`**
+   - This indicates a GitHub workflow variable substitution issue (FIXED in latest version)
+   - Ensure you're using the updated workflow file
+   - The workflow should generate config.py with actual values, not template variables
+
+4. **No articles fetched**
    - Check if there are actually tagged articles in your Zapier table
    - Verify tag filtering configuration matches your table structure
    - Review the API response format and adjust extraction logic if needed
 
-4. **Authentication errors**
+5. **Authentication errors**
    - Confirm API key format (Bearer token vs basic auth)
    - Check if additional headers are required
    - Verify API endpoint URL structure
 
 ### Debug Steps:
 
-1. **Test API Access Manually:**
+1. **Run the validation script in GitHub Actions:**
+   ```yaml
+   - name: Validate Zapier setup
+     run: python validate_setup.py
+   ```
+
+2. **Test API Access Manually:**
    ```bash
    curl -H "Authorization: Bearer YOUR_API_KEY" \
         -H "Content-Type: application/json" \
         "https://tables.zapier.com/api/v1/tables/01K4QYZXV51PJBZ3P9FWQB5MRA/records?limit=5"
    ```
 
-2. **Check Workflow Logs:**
+3. **Check Workflow Logs:**
    - Go to Actions tab and review failed workflow runs
    - Look for specific error messages in the "Run capture script" step
+   - Check if config.py shows actual values or template variables like `$ZAPIER_TABLE_ID`
 
-3. **Test Locally:**
+4. **Test Locally:**
    - Clone the repository
-   - Create `config.py` with your credentials
+   - Create `config.py` with your credentials (use config_template.py as reference)
    - Run `python capture_articles.py` to test the script
+   - Run `python test_full_pipeline.py` to validate the complete workflow
 
 ## API Endpoint Documentation
 
