@@ -1,6 +1,24 @@
 {
-  "last_updated": 1758829897069,
+  "last_updated": 1758874815839,
   "heroes": [
+    {
+      "manual_title": null,
+      "generated_title": null,
+      "original_title": "Medical AI Breakthrough in Diagnostics",
+      "url": "https://example.com/medical-ai-breakthrough",
+      "image": null,
+      "source": "Medical Technology News",
+      "published_at": 1758874815000
+    },
+    {
+      "manual_title": null,
+      "generated_title": null,
+      "original_title": "FDA Approves Revolutionary Gene Therapy",
+      "url": "https://example.com/fda-gene-therapy",
+      "image": null,
+      "source": "FDA News",
+      "published_at": 1758867615000
+    },
     {
       "manual_title": null,
       "generated_title": null,
@@ -9,24 +27,6 @@
       "image": null,
       "source": "FDA News",
       "published_at": 1758763846000
-    },
-    {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "Medical AI Breakthrough in Diagnostics",
-      "url": "https://example.com/medical-ai-breakthrough",
-      "image": null,
-      "source": "Medical Technology News",
-      "published_at": 1758758454000
-    },
-    {
-      "manual_title": null,
-      "generated_title": null,
-      "original_title": "Medical AI Breakthrough in Diagnostics",
-      "url": "https://example.com/medical-ai-breakthrough",
-      "image": null,
-      "source": "Medical Technology News",
-      "published_at": 1758754545000
     }
   ],
   "columns": {
@@ -41,6 +41,22 @@
       }
     ],
     "tech": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "Medical AI Breakthrough in Diagnostics",
+        "url": "https://example.com/medical-ai-breakthrough",
+        "source": "Medical Technology News",
+        "published_at": 1758758454000
+      },
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "Medical AI Breakthrough in Diagnostics",
+        "url": "https://example.com/medical-ai-breakthrough",
+        "source": "Medical Technology News",
+        "published_at": 1758754545000
+      },
       {
         "manual_title": null,
         "generated_title": null,
