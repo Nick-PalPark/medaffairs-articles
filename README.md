@@ -21,7 +21,8 @@ The repository includes a single, streamlined GitHub Actions workflow (`update_d
 - `ZAPIER_TABLE_ID`, `ZAPIER_API_KEY` secrets for table access
 - `MEDAFFAIRS_TECH_PAT` secret with repository dispatch permissions for the medaffairs.tech repo
 
-**📖 For detailed setup instructions, see [SETUP_ZAPIER_ACCESS.md](SETUP_ZAPIER_ACCESS.md)**
+**📖 For detailed setup instructions, see [SETUP_ZAPIER_ACCESS.md](SETUP_ZAPIER_ACCESS.md)**  
+**📊 For a visual workflow diagram, see [WORKFLOW_FLOWCHART.md](WORKFLOW_FLOWCHART.md)**
 
 ## Article Processing
 
