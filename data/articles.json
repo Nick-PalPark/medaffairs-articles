@@ -1,5 +1,5 @@
 {
-  "last_updated": 1759565805379,
+  "last_updated": 1759652181910,
   "heroes": [
     {
       "manual_title": null,
@@ -8,7 +8,7 @@
       "url": "https://example.com/medical-ai-breakthrough",
       "image": null,
       "source": "Medical Technology News",
-      "published_at": 1759565805000
+      "published_at": 1759652181000
     },
     {
       "manual_title": null,
@@ -17,7 +17,7 @@
       "url": "https://example.com/fda-gene-therapy",
       "image": null,
       "source": "FDA News",
-      "published_at": 1759558605000
+      "published_at": 1759644981000
     },
     {
       "manual_title": null,
@@ -26,7 +26,7 @@
       "url": "https://example.com/medical-ai-breakthrough",
       "image": null,
       "source": "Medical Technology News",
-      "published_at": 1759479495000
+      "published_at": 1759565805000
     }
   ],
   "columns": {
@@ -41,6 +41,22 @@
       }
     ],
     "tech": [
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "FDA Approves Revolutionary Gene Therapy",
+        "url": "https://example.com/fda-gene-therapy",
+        "source": "FDA News",
+        "published_at": 1759558605000
+      },
+      {
+        "manual_title": null,
+        "generated_title": null,
+        "original_title": "Medical AI Breakthrough in Diagnostics",
+        "url": "https://example.com/medical-ai-breakthrough",
+        "source": "Medical Technology News",
+        "published_at": 1759479495000
+      },
       {
         "manual_title": null,
         "generated_title": null,
