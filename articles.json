@@ -216,6 +216,24 @@
     "manual_title": null
   },
   {
+    "id": "2025-10-06_FDA-Approves-Revolutionary-Gene-Therapy.md",
+    "title": "FDA Approves Revolutionary Gene Therapy",
+    "url": "https://example.com/fda-gene-therapy",
+    "published": "2025-10-06 06:19:42",
+    "source": "FDA News",
+    "filepath": "articles/2025-10-06_FDA-Approves-Revolutionary-Gene-Therapy.md",
+    "manual_title": null
+  },
+  {
+    "id": "2025-10-06_Medical-AI-Breakthrough-in-Diagnostics.md",
+    "title": "Medical AI Breakthrough in Diagnostics",
+    "url": "https://example.com/medical-ai-breakthrough",
+    "published": "2025-10-06 08:19:42",
+    "source": "Medical Technology News",
+    "filepath": "articles/2025-10-06_Medical-AI-Breakthrough-in-Diagnostics.md",
+    "manual_title": null
+  },
+  {
     "id": "example-article.md",
     "title": "Example Article",
     "url": null,
